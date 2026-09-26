@@ -5,8 +5,8 @@
 @section('content')
     @include('auth.passwords.steps', ['currentStep' => 2])
 
-    <div class="mb-7 text-center lg:text-left">
-        <h1 class="font-display text-3xl font-bold tracking-tight text-primary">Verify Email</h1>
+    <div class="mb-6 text-center lg:text-left">
+        <h1 class="font-display text-2xl font-bold tracking-tight text-primary">Verify Email</h1>
         <p class="mt-2 text-sm text-ink-muted">
             We sent a 6-digit code to <span class="font-medium text-primary">{{ session('password_reset.email') }}</span>.
             It expires in {{ \App\Services\PasswordResetService::EXPIRY_MINUTES }} minutes.

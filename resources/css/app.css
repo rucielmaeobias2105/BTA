@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Parisienne&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,53 +8,60 @@
  |--------------------------------------------------------------------------
  | Balai ti Arjud design tokens
  |--------------------------------------------------------------------------
- | Single source of truth for the palette. Values sampled from the supplied
- | reference mockup (UI.jpg "Themed Palette" swatches and the hero board).
+ | Single source of truth for the palette. Values ported from the reference
+ | implementation in ../BalaiTiArjud (`resources/css/app.css` :root block):
+ | a warm rust/brick primary with copper accents and cream neutrals.
  */
 @layer base {
     :root {
-        /* Brand */
-        --color-primary: 110 33 27; /* #6E211B deep maroon - sampled CTA/H1/emblem */
-        --color-primary-dark: 74 23 18; /* #4A1712 hover/active */
-        --color-primary-light: 143 62 52; /* #8F3E34 subtle maroon tint */
+        /* Brand - reference --primary / --dark / --secondary */
+        --color-primary: 122 36 27; /* #7A241B rust brick - CTA/H1/emblem */
+        --color-primary-dark: 90 31 24; /* #5A1F18 hover/active */
+        --color-primary-light: 143 58 43; /* #8F3A2B subtle rust tint */
 
-        --color-gold: 201 162 75; /* #C9A24B accent */
-        --color-gold-light: 232 216 168; /* #E8D8A8 */
-        --color-gold-dark: 165 130 51; /* #A58233 */
+        /* Accent - reference --accent / --light, plus a darker step for text */
+        --color-gold: 184 111 75; /* #B86F4B copper accent */
+        --color-gold-mid: 200 154 112; /* #C89A70 kicker/eyebrow */
+        --color-gold-light: 217 169 130; /* #D9A982 */
+        --color-gold-dark: 143 82 51; /* #8F5233 readable accent text */
 
-        --color-sienna: 140 91 62; /* #8C5B3E secondary accent */
-        --color-blush: 232 201 192; /* #E8C9C0 soft badge bg */
+        --color-sienna: 141 75 50; /* #8D4B32 secondary accent, italic taglines */
+        --color-blush: 246 229 212; /* #F6E5D4 soft badge bg */
 
-        /* Neutrals */
-        --color-linen: 246 239 227; /* #F6EFE3 page background */
-        --color-cream: 251 247 239; /* #FBF7EF card background */
-        --color-text-dark: 46 34 32; /* #2E2220 */
-        --color-text-muted: 107 90 82; /* #6B5A52 */
+        /* Neutrals - reference --cream / --card / --text / --muted */
+        --color-linen: 248 240 228; /* #F8F0E4 page background */
+        --color-cream: 255 253 248; /* #FFFDF8 card background */
+        --color-soft: 255 249 240; /* #FFF9F0 raised surface */
+        --color-line: 222 203 184; /* #DECBB8 hairline border */
+        --color-text-dark: 74 42 32; /* #4A2A20 */
+        --color-text-muted: 128 106 93; /* #806A5D */
 
-        /* Status badges - Pending muted gold/tan */
-        --color-status-pending: 122 92 41;
-        --color-status-pending-bg: 244 231 205;
+        /* Status badges - derived from the reference --success/--warning/--danger
+           ramp, darkened where the value is used as text on a light tint. */
+        /* Pending muted tan */
+        --color-status-pending: 138 106 58;
+        --color-status-pending-bg: 250 240 219;
         /* Confirmed green */
-        --color-status-confirmed: 30 106 74;
-        --color-status-confirmed-bg: 216 238 226;
-        /* In Progress amber/orange */
-        --color-status-progress: 154 84 12;
-        --color-status-progress-bg: 250 226 197;
+        --color-status-confirmed: 79 118 84;
+        --color-status-confirmed-bg: 233 245 235;
+        /* In Progress amber */
+        --color-status-progress: 166 106 20;
+        --color-status-progress-bg: 253 240 214;
         /* Completed green (solid) */
-        --color-status-completed: 22 101 68;
-        --color-status-completed-bg: 27 122 84;
-        /* Cancelled red/maroon */
-        --color-status-cancelled: 132 32 26;
-        --color-status-cancelled-bg: 246 220 217;
+        --color-status-completed: 68 122 78;
+        --color-status-completed-bg: 79 118 84;
+        /* Cancelled red */
+        --color-status-cancelled: 157 56 44;
+        --color-status-cancelled-bg: 253 233 230;
         /* Low Stock tan/orange warning */
-        --color-status-low-stock: 143 82 21;
-        --color-status-low-stock-bg: 245 220 190;
-        /* Best Seller gold */
-        --color-status-best-seller: 112 82 24;
-        --color-status-best-seller-bg: 240 217 165;
+        --color-status-low-stock: 176 92 20;
+        --color-status-low-stock-bg: 253 238 219;
+        /* Best Seller copper */
+        --color-status-best-seller: 143 82 51;
+        --color-status-best-seller-bg: 250 232 218;
         /* Sold Out red */
-        --color-status-sold-out: 141 32 26;
-        --color-status-sold-out-bg: 249 214 211;
+        --color-status-sold-out: 168 44 36;
+        --color-status-sold-out-bg: 253 226 222;
     }
 
     html {
@@ -216,14 +223,24 @@
 
     /* ---------------------------------------------------------------------
      | Navigation
+     | Sidebar shell ported from the reference admin panel: a soft gold
+     | pill marks the active item instead of a solid maroon block.
      |------------------------------------------------------------------*/
+    .admin-nav-heading {
+        @apply px-3 pb-1 pt-5 text-[11px] font-bold uppercase tracking-widest text-ink-muted;
+    }
+
+    .admin-nav-heading:first-child {
+        @apply pt-0;
+    }
+
     .admin-nav-link {
-        @apply flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium
-               text-ink-muted transition hover:bg-primary/5 hover:text-primary;
+        @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink
+               transition hover:bg-blush hover:text-primary;
     }
 
     .admin-nav-link-active {
-        @apply bg-primary text-cream shadow-card hover:bg-primary-dark hover:text-cream;
+        @apply bg-blush font-semibold text-primary;
     }
 
     .customer-nav-link {
@@ -233,6 +250,450 @@
     .customer-nav-link-active {
         @apply text-primary after:absolute after:inset-x-0 after:-bottom-0.5 after:mx-auto
                after:h-0.5 after:w-8 after:rounded-full after:bg-primary;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Home page
+     | Layout ported from the reference implementation in
+     | ../BalaiTiArjud (layouts/home.blade.php + home.blade.php), re-expressed
+     | with the design tokens above instead of that project's literal hexes.
+     |------------------------------------------------------------------*/
+
+    /* Hero ------------------------------------------------------------- */
+    .home-hero {
+        @apply relative z-10 grid overflow-hidden lg:grid-cols-[43fr_57fr];
+        min-height: 880px;
+        background:
+            radial-gradient(circle at 10% 18%, rgb(255 255 255 / 0.75), transparent 28%),
+            linear-gradient(180deg, rgb(255 250 243) 0%, rgb(var(--color-linen)) 100%);
+    }
+
+    .home-hero-copy {
+        @apply relative z-20 flex flex-col justify-center;
+        padding: 96px 35px 132px max(45px, calc((100vw - 1600px) / 2));
+    }
+
+    /* Soft curved panel behind the hero copy. */
+    .home-hero-copy::before {
+        content: '';
+        @apply pointer-events-none absolute -z-10;
+        left: -100px;
+        top: -50px;
+        width: 860px;
+        height: 1000px;
+        border-radius: 0 55% 55% 0;
+        background: rgb(var(--color-soft) / 0.92);
+        border-right: 3px solid rgb(var(--color-gold-light) / 0.6);
+    }
+
+    .home-hero-media {
+        @apply relative overflow-hidden;
+        min-height: 880px;
+    }
+
+    .home-hero-media img {
+        @apply block h-full w-full object-cover;
+        filter: saturate(0.94);
+    }
+
+    /* Curved mask that blends the photo into the copy panel. */
+    .home-hero-media::before {
+        content: '';
+        @apply pointer-events-none absolute;
+        z-index: 2;
+        left: -80px;
+        top: -10px;
+        width: 170px;
+        height: 900px;
+        background: rgb(var(--color-linen));
+        border-radius: 50%;
+        transform: rotate(-4deg);
+        opacity: 0.92;
+    }
+
+    .home-hero-media::after {
+        content: '';
+        @apply pointer-events-none absolute inset-x-0 bottom-0;
+        z-index: 3;
+        height: 140px;
+        background: linear-gradient(to top, rgb(var(--color-linen) / 0.75), transparent);
+    }
+
+    .home-floral {
+        @apply pointer-events-none absolute select-none text-gold-light;
+        opacity: 0.43;
+        font-size: 105px;
+        line-height: 1;
+    }
+
+    .home-floral-top {
+        left: -10px;
+        top: 5px;
+        transform: rotate(-20deg);
+    }
+
+    .home-floral-bottom {
+        left: -30px;
+        bottom: 80px;
+        font-size: 90px;
+        transform: rotate(15deg);
+    }
+
+    .home-kicker {
+        @apply mb-5 text-lg font-semibold text-gold-mid;
+        letter-spacing: 5px;
+    }
+
+    .home-hero-title {
+        @apply m-0 font-heading text-[78px] font-bold leading-none tracking-tight text-primary;
+    }
+
+    .home-script {
+        @apply mt-4 font-script leading-[1.1] text-primary-dark;
+        font-size: 52px;
+    }
+
+    .home-description {
+        @apply my-8 max-w-[610px] leading-[1.45] text-sienna;
+        font-size: 20px;
+    }
+
+    .home-hero-buttons {
+        @apply flex flex-wrap gap-4;
+    }
+
+    .home-features {
+        @apply mt-11 grid max-w-[650px] grid-cols-4;
+    }
+
+    .home-feature {
+        @apply flex min-h-[102px] flex-col items-center justify-start px-[18px] text-center;
+        border-right: 1px solid rgb(var(--color-gold-light) / 0.75);
+    }
+
+    .home-feature:last-child {
+        border-right: 0;
+    }
+
+    .home-feature-icon {
+        @apply mb-3 grid h-[55px] w-[55px] place-items-center rounded-full bg-blush text-2xl text-primary;
+    }
+
+    .home-feature span {
+        @apply text-[15px] font-bold leading-[1.25] text-ink;
+    }
+
+    /* Decorative arc over the photo. */
+    .home-gold-arc {
+        @apply pointer-events-none absolute;
+        z-index: 4;
+        right: 40px;
+        bottom: 52px;
+        width: 480px;
+        height: 140px;
+        border-top: 2px solid rgb(var(--color-gold) / 0.5);
+        border-radius: 50%;
+        transform: rotate(-14deg);
+    }
+
+    /* Shared section furniture ----------------------------------------- */
+    .home-section {
+        @apply relative z-10 py-24;
+        scroll-margin-top: 20px;
+    }
+
+    .home-head {
+        @apply mx-auto max-w-[820px] text-center;
+    }
+
+    .home-eyebrow {
+        @apply text-[15px] font-semibold uppercase text-gold-mid;
+        letter-spacing: 5px;
+    }
+
+    .home-title {
+        @apply mt-2.5 font-heading text-[48px] font-bold leading-[1.05] text-primary;
+    }
+
+    .home-sub {
+        @apply mx-auto mt-4 max-w-[640px] text-[17px] leading-relaxed text-ink-muted;
+    }
+
+    /* Services ---------------------------------------------------------- */
+    .home-service-grid {
+        @apply mt-14 grid gap-7 md:grid-cols-2 lg:grid-cols-3;
+    }
+
+    .home-more {
+        @apply mt-11 text-center;
+    }
+
+    /* Promos ----------------------------------------------------------- */
+    .home-promo-grid {
+        @apply mt-14 grid gap-7 md:grid-cols-2 lg:grid-cols-3;
+    }
+
+    .home-promo-card {
+        @apply flex flex-col overflow-hidden rounded-[22px] border border-line/85 bg-soft;
+        box-shadow: 0 12px 34px rgb(var(--color-primary) / 0.06);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .home-promo-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 18px 44px rgb(var(--color-primary) / 0.12);
+    }
+
+    .home-promo-media {
+        @apply relative flex h-[210px] items-center justify-center overflow-hidden bg-gradient-to-br from-blush to-gold-light/50;
+    }
+
+    .home-promo-media img {
+        @apply h-full w-full object-cover transition duration-500;
+    }
+
+    .home-promo-card:hover .home-promo-media img {
+        transform: scale(1.06);
+    }
+
+    .home-promo-media > .badge {
+        @apply absolute left-3.5 top-3.5;
+    }
+
+    .home-promo-flourish {
+        @select-none text-6xl text-gold;
+        opacity: 0.35;
+    }
+
+    .home-promo-body {
+        @apply flex flex-1 flex-col p-6;
+    }
+
+    .home-promo-body h3 {
+        @apply font-heading text-2xl font-bold text-primary-dark;
+    }
+
+    .home-promo-body > p {
+        @apply mt-2.5 flex-1 text-[14.5px] leading-relaxed text-ink-muted;
+    }
+
+    .home-promo-foot {
+        @apply mt-4 flex items-center justify-between gap-3 border-t border-line pt-4;
+    }
+
+    .home-promo-validity {
+        @apply text-[11px] font-semibold uppercase tracking-widest text-ink-muted;
+    }
+
+    /* About ------------------------------------------------------------- */
+    .home-about {
+        @apply mt-14 grid items-center gap-14 lg:grid-cols-[1fr_1.05fr];
+    }
+
+    .home-about-media img {
+        @apply block w-full rounded-3xl border border-gold/35 object-cover;
+        max-height: 520px;
+        box-shadow: 0 24px 60px rgb(var(--color-primary) / 0.14);
+    }
+
+    .home-about-copy {
+        @apply mt-4 text-[16px] leading-relaxed text-ink;
+    }
+
+    .home-about-list {
+        @apply m-0 list-none p-0;
+    }
+
+    .home-about-list li {
+        @apply relative border-b border-dashed border-line py-2.5 pl-9 text-[16px] text-ink;
+    }
+
+    .home-about-list li:last-child {
+        border-bottom: 0;
+    }
+
+    .home-about-list li::before {
+        content: '\2726';
+        @apply absolute left-1 text-lg text-gold;
+    }
+
+    .home-about-list strong {
+        @apply text-primary-dark;
+    }
+
+    /* Gallery ----------------------------------------------------------- */
+    .home-gallery {
+        @apply mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4;
+    }
+
+    .home-gallery figure {
+        @apply m-0 overflow-hidden rounded-[18px] border border-gold/35;
+        box-shadow: 0 10px 30px rgb(var(--color-primary) / 0.07);
+    }
+
+    .home-gallery img {
+        @apply block h-[260px] w-full object-cover transition duration-500;
+    }
+
+    .home-gallery figure:hover img {
+        transform: scale(1.07);
+    }
+
+    /* Booking CTA ------------------------------------------------------- */
+    .home-cta {
+        @apply relative overflow-hidden rounded-[32px] border border-gold/45 px-10 py-[72px] text-center;
+        scroll-margin-top: 40px;
+        background:
+            radial-gradient(circle at 88% 12%, rgb(255 255 255 / 0.55), transparent 34%),
+            linear-gradient(120deg, #fbe7d2 0%, #fff9f0 50%, #f3d9bc 100%);
+        box-shadow: 0 24px 60px rgb(var(--color-primary) / 0.1);
+    }
+
+    .home-empty {
+        @apply col-span-full rounded-[22px] border-2 border-dashed border-gold/50 px-6 py-12 text-center text-[15px] text-ink-muted;
+    }
+
+    /* Back to top ------------------------------------------------------- */
+    .home-to-top {
+        @apply fixed bottom-7 right-[35px] z-30 grid h-[58px] w-[58px] place-items-center rounded-full
+               border-0 bg-primary text-2xl text-cream shadow-card-hover transition hover:bg-primary-dark;
+    }
+
+    @media (max-width: 1200px) {
+        .home-hero-title { font-size: 62px; }
+        .home-script { font-size: 43px; }
+        .home-description { font-size: 17px; }
+        .home-hero-copy { padding-left: 40px; }
+        .home-title { font-size: 42px; }
+    }
+
+    @media (max-width: 900px) {
+        .home-hero { min-height: 0; grid-template-columns: 1fr; }
+        .home-hero-copy { min-height: 0; padding: 78px 28px 96px; }
+        .home-hero-copy::before {
+            left: -40px;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            border-right: 0;
+            border-radius: 0 0 55% 0;
+        }
+        .home-hero-media { min-height: 430px; }
+        .home-hero-media::before { display: none; }
+        .home-hero-title { font-size: 58px; }
+        .home-script { font-size: 42px; }
+        .home-section { @apply py-[72px]; }
+        .home-about { gap: 36px; grid-template-columns: 1fr; }
+        .home-title { font-size: 38px; }
+    }
+
+    @media (max-width: 600px) {
+        .home-hero-copy { padding: 60px 20px 84px; }
+        .home-hero-copy::before { left: -80px; }
+        .home-kicker { font-size: 13px; letter-spacing: 3px; }
+        .home-hero-title { font-size: 48px; }
+        .home-script { font-size: 36px; }
+        .home-description { font-size: 15px; margin: 26px 0 28px; }
+        .home-hero-buttons { @apply flex-col; }
+        .home-hero-buttons > * { @apply w-full justify-center; }
+        .home-features { margin-top: 32px; row-gap: 20px; grid-template-columns: repeat(2, 1fr); }
+        .home-feature:nth-child(2) { border-right: 0; }
+        .home-feature:nth-child(3),
+        .home-feature:nth-child(4) { border-top: 1px solid rgb(var(--color-gold-light) / 0.75); padding-top: 20px; }
+        .home-hero-media { min-height: 330px; }
+        .home-gold-arc { display: none; }
+        .home-to-top { right: 18px; bottom: 18px; height: 50px; width: 50px; }
+        .home-section { @apply py-[60px]; }
+        .home-title { font-size: 32px; }
+        .home-service-grid,
+        .home-gallery { grid-template-columns: 1fr; }
+        .home-gallery img { height: 230px; }
+        .home-cta { @apply px-6 py-[54px]; }
+    }
+
+    /* ---------------------------------------------------------------------
+     | Auth pages
+     | Split-screen sign-in / register ported from the reference
+     | implementation in ../BalaiTiArjud: a photo panel carrying the brand
+     | voice on the left, a tabbed form on the right.
+     |------------------------------------------------------------------*/
+    .auth-page {
+        @apply grid w-full lg:grid-cols-2;
+        min-height: 100vh;
+    }
+
+    .auth-visual {
+        @apply relative hidden items-center justify-center overflow-hidden lg:flex;
+        background-image: var(--auth-visual-image);
+        background-position: center;
+        background-size: cover;
+    }
+
+    /* Warm overlay so cream text stays legible over the photo. */
+    .auth-visual::before {
+        content: '';
+        @apply absolute inset-0;
+        background: linear-gradient(
+            100deg,
+            rgb(var(--color-primary-dark) / 0.88) 0%,
+            rgb(var(--color-primary-dark) / 0.62) 45%,
+            rgb(var(--color-primary-dark) / 0.3) 100%
+        );
+    }
+
+    .auth-brand {
+        @apply relative z-10 mx-auto max-w-md px-10 text-center text-cream;
+    }
+
+    .auth-brand-logo {
+        @apply mx-auto mb-5 h-24 w-24 rounded-full object-cover;
+        box-shadow: 0 6px 26px rgb(var(--color-primary-dark) / 0.45);
+    }
+
+    .auth-brand-title {
+        @apply block font-script leading-none text-cream;
+        font-size: 40px;
+    }
+
+    .auth-brand-sub {
+        @apply mt-1 block font-heading font-semibold text-gold-light;
+        font-size: 20px;
+    }
+
+    .auth-brand-heading {
+        @apply mt-7 font-heading font-bold leading-tight text-cream;
+        font-size: 34px;
+    }
+
+    .auth-brand-script {
+        @apply mt-1 font-script text-gold-light;
+        font-size: 24px;
+    }
+
+    .auth-box {
+        @apply flex w-full items-center justify-center px-6 py-12 sm:px-10;
+    }
+
+    .auth-form {
+        @apply w-full;
+        max-width: 480px;
+    }
+
+    .auth-tabs {
+        @apply mb-7 flex border-b border-line;
+    }
+
+    .auth-tab {
+        @apply flex-1 py-3 text-center text-sm font-medium text-ink-muted transition
+               hover:text-primary;
+    }
+
+    .auth-tab-active {
+        @apply border-b-2 border-primary font-bold text-primary;
+    }
+
+    @media (max-width: 1023px) {
+        .auth-page { min-height: 100vh; }
     }
 }
 

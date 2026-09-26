@@ -5,8 +5,8 @@
 @section('content')
     @include('auth.passwords.steps', ['currentStep' => 1])
 
-    <div class="mb-7 text-center lg:text-left">
-        <h1 class="font-display text-3xl font-bold tracking-tight text-primary">Forgot Password</h1>
+    <div class="mb-6 text-center lg:text-left">
+        <h1 class="font-display text-2xl font-bold tracking-tight text-primary">Forgot Password</h1>
         <p class="mt-2 text-sm text-ink-muted">Enter your email and we'll send you a 6-digit verification code.</p>
     </div>
 

@@ -3,14 +3,20 @@
 @section('title', 'Log In')
 
 @section('content')
-    <div class="mb-7 text-center lg:text-left">
-        <h1 class="font-display text-3xl font-bold tracking-tight text-primary">Welcome Back</h1>
-        <p class="mt-2 text-sm text-ink-muted">Log in to manage your appointments.</p>
-    </div>
+    {{-- Tabs: the reference puts sign-in and registration on one surface. --}}
+    <nav class="auth-tabs" aria-label="Authentication">
+        <a href="{{ route('login') }}" class="auth-tab auth-tab-active" aria-current="page">Login</a>
+        <a href="{{ route('register') }}" class="auth-tab">Register</a>
+    </nav>
+
+    <h1 class="font-display text-2xl font-bold tracking-tight text-primary">Welcome Back</h1>
+    <p class="mt-1.5 text-sm text-ink-muted">
+        Log in to your account to book appointments and manage your bookings.
+    </p>
 
     <x-ui.errors />
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-4" novalidate>
+    <form method="POST" action="{{ route('login') }}" class="mt-6 space-y-4" novalidate>
         @csrf
 
         <x-ui.form.input
@@ -21,14 +27,12 @@
             autocomplete="username"
         />
 
-        <div>
-            <x-ui.form.password name="password" label="Password" required autocomplete="current-password" />
-            <div class="mt-2 text-right">
-                <a href="{{ route('password.request') }}" class="toggle-link">Forgot your password?</a>
-            </div>
-        </div>
+        <x-ui.form.password name="password" label="Password" required autocomplete="current-password" />
 
-        <x-ui.form.checkbox name="remember" value="1" label="Remember me" />
+        <div class="flex items-center justify-between gap-3 pt-1">
+            <x-ui.form.checkbox name="remember" value="1" label="Remember me" class="mb-0" />
+            <a href="{{ route('password.request') }}" class="toggle-link">Forgot your password?</a>
+        </div>
 
         <button type="submit" class="btn-primary w-full">Log In</button>
     </form>

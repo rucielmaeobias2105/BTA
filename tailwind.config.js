@@ -3,10 +3,9 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 /**
  * Balai ti Arjud design tokens.
  *
- * Colours are sampled from the supplied reference mockup (UI.jpg theme palette
- * swatches + "Balai ti Arjud Beauty Lounge Homepage.png" hero) and declared as
- * CSS custom properties in resources/css/app.css. Adjust a token in ONE place
- * (app.css `:root`) and every component follows.
+ * Colours are declared as CSS custom properties in resources/css/app.css
+ * (ported from the reference implementation in ../BalaiTiArjud). Adjust a
+ * token in ONE place (app.css `:root`) and every component follows.
  */
 const withOpacity = (variable) => ({ opacityValue }) => {
     if (opacityValue === undefined) return `rgb(var(${variable}))`;
@@ -31,11 +30,14 @@ export default {
                 },
                 gold: {
                     DEFAULT: withOpacity('--color-gold'),
+                    mid: withOpacity('--color-gold-mid'),
                     light: withOpacity('--color-gold-light'),
                     dark: withOpacity('--color-gold-dark'),
                 },
                 linen: withOpacity('--color-linen'),
                 cream: withOpacity('--color-cream'),
+                soft: withOpacity('--color-soft'),
+                line: withOpacity('--color-line'),
                 sienna: withOpacity('--color-sienna'),
                 blush: withOpacity('--color-blush'),
                 ink: {
@@ -63,6 +65,8 @@ export default {
             },
             fontFamily: {
                 display: ['"Playfair Display"', 'Georgia', 'serif'],
+                heading: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+                script: ['Parisienne', '"Brush Script MT"', 'cursive'],
                 sans: ['Poppins', 'Inter', ...defaultTheme.fontFamily.sans],
             },
             borderRadius: {
@@ -70,9 +74,9 @@ export default {
                 pill: '999px',
             },
             boxShadow: {
-                card: '0 1px 2px rgba(46,34,32,0.04), 0 8px 24px -12px rgba(110,33,27,0.18)',
-                'card-hover': '0 2px 4px rgba(46,34,32,0.06), 0 16px 32px -12px rgba(110,33,27,0.28)',
-                panel: '0 1px 3px rgba(46,34,32,0.05), 0 12px 28px -16px rgba(46,34,32,0.25)',
+                card: '0 1px 2px rgba(74,42,32,0.04), 0 8px 24px -12px rgba(122,36,27,0.18)',
+                'card-hover': '0 2px 4px rgba(74,42,32,0.06), 0 16px 32px -12px rgba(122,36,27,0.28)',
+                panel: '0 1px 3px rgba(74,42,32,0.05), 0 12px 28px -16px rgba(74,42,32,0.25)',
             },
             backgroundImage: {
                 'gold-sheen': 'linear-gradient(135deg, rgb(var(--color-gold)) 0%, rgb(var(--color-gold-light)) 100%)',
