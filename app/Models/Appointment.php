@@ -88,7 +88,11 @@ class Appointment extends Model
 
     public function statusHistory(): HasMany
     {
-        return $this->hasMany(AppointmentStatusHistory::class)->latest();
+        // Newest first, with id as the tiebreaker: several transitions can
+        // land in the same second, and `latest()` alone is then non-deterministic.
+        return $this->hasMany(AppointmentStatusHistory::class)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
     }
 
     public function review(): HasMany
@@ -192,16 +196,24 @@ class Appointment extends Model
         return $this->status === AppointmentStatus::Completed && ! $this->review()->exists();
     }
 
-    /** Human label for who moved the appointment into its current state. */
+    /**
+     * Record a status transition.
+     *
+     * `$from` must be passed explicitly: by the time a transition is logged the
+     * model's own `status` has usually already been overwritten, so reading
+     * `$this->status` here would record from == to. Pass null for the initial
+     * creation of an appointment.
+     */
     public function recordStatusChange(
         AppointmentStatus $to,
         ChangedBy $by,
         ?int $actorId = null,
         ?string $actorName = null,
         ?string $note = null,
+        ?AppointmentStatus $from = null,
     ): void {
         $this->statusHistory()->create([
-            'from_status' => $this->status,
+            'from_status' => $from,
             'to_status' => $to,
             'changed_by' => $by,
             'changed_by_id' => $actorId,

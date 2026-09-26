@@ -90,6 +90,7 @@ class CancelAppointmentController extends Controller
             auth()->id(),
             $appointment->customer_name,
             'Cancelled by customer.'.($reason ? ' Reason: '.$reason : ''),
+            $previous,
         );
 
         // Stock held for this booking goes back on the shelf.

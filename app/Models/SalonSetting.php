@@ -38,8 +38,22 @@ class SalonSetting extends Model
 
     public static function current(): self
     {
-        return static::first() ?? static::create([
+        $settings = static::first();
+
+        if ($settings) {
+            return $settings;
+        }
+
+        // Create with every default explicit: column-level DB defaults are not
+        // reflected on the in-memory model, and a booking_lead_days of 0 would
+        // make every date look unbookable.
+        return static::create([
+            'name' => 'Balai ti Arjud — Glow & Co. Beauty Lounge',
             'operating_hours' => self::defaultHours(),
+            'slot_interval_minutes' => 30,
+            'booking_lead_days' => 60,
+            'down_payment_required' => true,
+            'down_payment_percentage' => 50,
         ]);
     }
 

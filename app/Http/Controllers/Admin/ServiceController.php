@@ -211,7 +211,8 @@ class ServiceController extends Controller
             $attributes = [
                 'name' => $row['name'],
                 'price' => $row['price'],
-                'duration_minutes' => $row['duration_minutes'] ?: null,
+                // Blank inputs are simply absent from the payload.
+                'duration_minutes' => ($row['duration_minutes'] ?? null) ?: null,
                 'is_default' => (bool) ($row['is_default'] ?? false),
             ];
 

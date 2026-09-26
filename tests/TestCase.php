@@ -2,9 +2,178 @@
 
 namespace Tests;
 
+use App\Enums\AppointmentStatus;
+use App\Enums\DownPaymentStatus;
+use App\Enums\ItemTag;
+use App\Models\Admin;
+use App\Models\Appointment;
+use App\Models\AppointmentService;
+use App\Models\InventoryItem;
+use App\Models\SalonSetting;
+use App\Models\Service;
+use App\Models\ServiceVariant;
+use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    //
+    /* ------------------------------------------------------------------ */
+    /* Factories                                                          */
+    /* ------------------------------------------------------------------ */
+
+    protected function makeUser(array $attributes = []): User
+    {
+        static::$sequence++;
+
+        return User::create(array_merge([
+            'first_name' => 'Test',
+            'last_name' => 'Customer',
+            'email' => 'customer'.static::$sequence.'@example.test',
+            'username' => 'customer'.static::$sequence,
+            'contact_number' => '09171234567',
+            'password' => 'password',
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    protected function makeAdmin(array $attributes = []): Admin
+    {
+        static::$sequence++;
+
+        return Admin::create(array_merge([
+            'first_name' => 'Staff',
+            'last_name' => 'Member',
+            'username' => 'staff'.static::$sequence,
+            'email' => 'staff'.static::$sequence.'@example.test',
+            'password' => 'password',
+            'role' => 'manager',
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    protected function makeService(array $attributes = []): Service
+    {
+        static::$sequence++;
+
+        return Service::create(array_merge([
+            'name' => 'Test Service '.static::$sequence,
+            'slug' => 'test-service-'.static::$sequence,
+            'category' => 'Nail Care',
+            'price' => 500,
+            'duration_minutes' => 60,
+            'description' => 'A service used in tests.',
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    protected function makeItem(array $attributes = []): InventoryItem
+    {
+        static::$sequence++;
+
+        return InventoryItem::create(array_merge([
+            'name' => 'Test Item '.static::$sequence,
+            'sku' => 'TEST-'.static::$sequence,
+            'category' => 'Nail Care',
+            'quantity' => 20,
+            'unit' => 'pcs',
+            'reorder_threshold' => 5,
+            'status_tag' => ItemTag::Available,
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    /**
+     * A confirmed, bookable appointment with one service line.
+     */
+    protected function makeAppointment(
+        ?User $user = null,
+        ?Service $service = null,
+        array $attributes = [],
+    ): Appointment {
+        $service ??= $this->makeService();
+
+        $appointment = Appointment::create(array_merge([
+            'reference_number' => Appointment::generateReferenceNumber(),
+            'user_id' => $user?->id,
+            'customer_name' => $user?->full_name ?? 'Walk In',
+            'customer_phone' => '09171234567',
+            'customer_email' => $user?->email,
+            'preferred_date' => today()->addDay(),
+            'preferred_time' => '10:00',
+            'total_amount' => (float) $service->price,
+            'down_payment_status' => DownPaymentStatus::Unverified,
+            'status' => AppointmentStatus::Pending,
+        ], $attributes));
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'service_name' => $service->name,
+            'price' => (float) $service->price,
+            'duration_minutes' => (int) $service->duration_minutes,
+            'quantity' => 1,
+        ]);
+
+        return $appointment->fresh();
+    }
+
+    /**
+     * Operating config with a predictable window: open 09:00–18:00 daily.
+     */
+    protected function makeSalonSettings(): SalonSetting
+    {
+        $hours = [];
+
+        foreach (array_keys(SalonSetting::dayNames()) as $day) {
+            $hours[$day] = ['09:00', '18:00'];
+        }
+
+        $settings = SalonSetting::first();
+
+        if ($settings) {
+            $settings->update([
+                'operating_hours' => $hours,
+                'slot_interval_minutes' => 60,
+                'booking_lead_days' => 30,
+                'down_payment_required' => true,
+                'down_payment_percentage' => 50,
+            ]);
+
+            return $settings->fresh();
+        }
+
+        return SalonSetting::create([
+            'operating_hours' => $hours,
+            'slot_interval_minutes' => 60,
+            'booking_lead_days' => 30,
+            'down_payment_required' => true,
+            'down_payment_percentage' => 50,
+        ]);
+    }
+
+    /**
+     * First open date at least `offset` days out, so tests never collide with
+     * a blocked range left behind by a previous case.
+     */
+    protected function bookableDate(int $offset = 3): string
+    {
+        $settings = $this->makeSalonSettings();
+
+        $date = today()->addDays($offset);
+
+        while (! $settings->isOpenOn($date)) {
+            $date->addDay();
+        }
+
+        return $date->toDateString();
+    }
+
+    protected function linkItemToService(Service $service, InventoryItem $item, float $perService = 1): void
+    {
+        $service->inventoryItems()->syncWithoutDetaching([
+            $item->id => ['quantity_per_service' => $perService],
+        ]);
+    }
+
+    protected static int $sequence = 0;
 }

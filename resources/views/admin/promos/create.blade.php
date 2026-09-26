@@ -1,1 +1,1 @@
-@include('admin.promos._form)
+@include('admin.promos._form')

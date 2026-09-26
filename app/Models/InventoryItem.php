@@ -66,16 +66,21 @@ class InventoryItem extends Model
     }
 
     /**
-     * The tag the item *should* have given its quantity, unless an admin has
-     * manually overridden it (see $status_tag_overridden).
+     * The tag implied purely by the stock level.
+     *
+     * Deliberately does NOT consult `status_tag`, otherwise a manual
+     * Sold Out tag would make itself its own "suggestion" and an override
+     * could never be detected.
      */
     public function suggestedTag(): ItemTag
     {
-        if ($this->isSoldOut()) {
+        $quantity = (float) $this->quantity;
+
+        if ($quantity <= 0) {
             return ItemTag::SoldOut;
         }
 
-        if ($this->isLowOnStock()) {
+        if ($quantity <= (float) $this->reorder_threshold) {
             return ItemTag::LowStock;
         }
 

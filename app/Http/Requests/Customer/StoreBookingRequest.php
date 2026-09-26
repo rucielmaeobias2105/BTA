@@ -31,6 +31,7 @@ class StoreBookingRequest extends FormRequest
             'preferred_date' => ['required', 'date'],
             'preferred_time' => ['required', 'date_format:H:i'],
 
+            'allergies' => ['nullable', 'string', 'max:2000'],
             'allergies_other' => ['nullable', 'string', 'max:2000'],
             'last_services_availed' => ['nullable', 'string', 'max:2000'],
             'last_services_availed_note' => ['nullable', 'string', 'max:2000'],

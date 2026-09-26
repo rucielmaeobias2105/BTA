@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AppointmentController as AdminAppointmentController;
 use App\Http\Controllers\Admin\Auth\AdminSessionController;
 use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CatalogController;
@@ -169,12 +170,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
 
         // Admin Flow 3 — Appointment Management
-        Route::resource('appointments', AppointmentController::class)->except(['create', 'destroy']);
-        Route::patch('appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])
+        Route::resource('appointments', AdminAppointmentController::class)->except(['create', 'destroy']);
+        Route::patch('appointments/{appointment}/status', [AdminAppointmentController::class, 'updateStatus'])
             ->name('appointments.status');
-        Route::patch('appointments/{appointment}/notes', [AppointmentController::class, 'updateNotes'])
+        Route::patch('appointments/{appointment}/notes', [AdminAppointmentController::class, 'updateNotes'])
             ->name('appointments.notes');
-        Route::patch('appointments/{appointment}/down-payment', [AppointmentController::class, 'updateDownPayment'])
+        Route::patch('appointments/{appointment}/down-payment', [AdminAppointmentController::class, 'updateDownPayment'])
             ->name('appointments.down-payment');
 
         // Admin Flow 4 — Service & Item overview (combined)
@@ -195,10 +196,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Admin Flow 6 — Inventory / Item Management
         Route::resource('inventory', InventoryController::class)->except(['show']);
 
-        // Admin Flow 7 — Low-Stock / Not-Available Tagging
+        // Admin Flow 7 — Low-Stock / Not-Available Tagging.
+        // NOTE: /tags/bulk must be declared before /tags/{item} or the
+        // literal path is swallowed by the {item} parameter.
         Route::get('/tags', [ItemTagController::class, 'index'])->name('tags.index');
-        Route::patch('/tags/{item}', [ItemTagController::class, 'update'])->name('tags.update');
         Route::patch('/tags/bulk', [ItemTagController::class, 'bulkUpdate'])->name('tags.bulk');
+        Route::patch('/tags/{item}', [ItemTagController::class, 'update'])->name('tags.update');
 
         // Admin Flow 8 — Calendar & Blocked Dates
         Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');

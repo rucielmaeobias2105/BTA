@@ -112,6 +112,7 @@ class AppointmentController extends Controller
             $admin->id,
             $admin->full_name,
             $data['admin_notes'] ?? null,
+            $previous,
         );
 
         $this->dispatchCustomerNotification($appointment, $target, $previous);
@@ -207,6 +208,7 @@ class AppointmentController extends Controller
             $request->user('admin')->id,
             $request->user('admin')->full_name,
             $data['admin_notes'] ?? null,
+            $previous,
         );
 
         if ($dateChanged) {
@@ -232,8 +234,9 @@ class AppointmentController extends Controller
             AppointmentStatus::Cancelled->value => AppointmentCancelledByAdminNotification::class,
         ];
 
-        if (isset($map[$target])) {
-            $appointment->user->notify(new $map[$target]($appointment));
+        if ($map[$target->value] ?? null) {
+            $notification = $map[$target->value];
+            $appointment->user->notify(new $notification($appointment));
         }
     }
 

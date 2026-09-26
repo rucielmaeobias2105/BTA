@@ -1,1 +1,1 @@
-@include('admin.inventory._form)
+@include('admin.inventory._form')

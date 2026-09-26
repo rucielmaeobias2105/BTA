@@ -40,6 +40,8 @@ class TermsController extends Controller
         $category = $request->query('category', TermsCategory::Booking->value);
 
         return view('admin.terms.create', [
+            // The shared form partial always operates on a model.
+            'term' => new TermsAndCondition(['category' => TermsCategory::tryFrom($category) ?? TermsCategory::Booking]),
             'category' => TermsCategory::tryFrom($category) ?? TermsCategory::Booking,
             'categories' => TermsCategory::options(),
         ]);

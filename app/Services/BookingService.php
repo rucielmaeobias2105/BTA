@@ -190,6 +190,7 @@ class BookingService
                 'quantity' => $line->quantity,
             ])->all());
 
+            // A reschedule does not change the status, so from == to.
             $appointment->recordStatusChange(
                 $appointment->status,
                 ChangedBy::Customer,
@@ -197,6 +198,7 @@ class BookingService
                 $appointment->customer_name,
                 "Rescheduled from {$previousDate} {$previousTime} to {$date} {$time}."
                 .($reason ? " Reason: {$reason}" : ''),
+                $appointment->status,
             );
         });
     }
