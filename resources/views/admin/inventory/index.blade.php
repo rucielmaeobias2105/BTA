@@ -16,10 +16,12 @@
                 @endif
                 Low-Stock Tags
             </a>
-            <a href="{{ route('admin.inventory.create') }}" class="btn-primary btn-sm">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Add Item
-            </a>
+            @can('admin.inventory.manage')
+                <a href="{{ route('admin.inventory.create') }}" class="btn-primary btn-sm">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add Item
+                </a>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -92,7 +94,9 @@
     @if ($items->isEmpty())
         <x-ui.empty title="No items found" description="Add your first inventory item to get started.">
             <x-slot:action>
-                <a href="{{ route('admin.inventory.create') }}" class="btn-primary">Add Item</a>
+                @can('admin.inventory.manage')
+                    <a href="{{ route('admin.inventory.create') }}" class="btn-primary">Add Item</a>
+                @endcan
             </x-slot:action>
         </x-ui.empty>
     @else
@@ -108,7 +112,9 @@
                             <th>Supplier</th>
                             <th>Tag</th>
                             <th>Linked Services</th>
-                            <th class="text-right">Actions</th>
+                            @can('admin.inventory.manage')
+                                <th class="text-right">Actions</th>
+                            @endcan
                         </tr>
                     </thead>
                     <tbody>
@@ -140,17 +146,19 @@
                                         <span class="text-sm text-ink-muted">—</span>
                                     @endif
                                 </td>
-                                <td>
-                                    <div class="flex justify-end gap-1.5">
-                                        <a href="{{ route('admin.inventory.edit', $item) }}" class="btn-secondary btn-sm">Edit</a>
-                                        <form method="POST" action="{{ route('admin.inventory.destroy', $item) }}"
-                                              onsubmit="return confirm('Delete “{{ $item->name }}”?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
+                                @can('admin.inventory.manage')
+                                    <td>
+                                        <div class="flex justify-end gap-1.5">
+                                            <a href="{{ route('admin.inventory.edit', $item) }}" class="btn-secondary btn-sm">Edit</a>
+                                            <form method="POST" action="{{ route('admin.inventory.destroy', $item) }}"
+                                                  onsubmit="return confirm('Delete “{{ $item->name }}”?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                @endcan
                             </tr>
                         @endforeach
                     </tbody>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateAdmin;
+use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\RedirectIfAuthenticatedAdmin;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'auth.admin' => AuthenticateAdmin::class,
+            'admin.role' => EnsureAdminRole::class,
             'admin.guest' => RedirectIfAuthenticatedAdmin::class,
             'user.active' => EnsureUserIsActive::class,
         ]);

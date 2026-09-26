@@ -184,7 +184,7 @@ class LowStockTaggingTest extends TestCase
 
         $this->linkItemToService($service, $item, 1);
 
-        $this->post('/book', [
+        $this->actingAs($this->makeUser())->post('/book', [
             'services' => [['service_id' => $service->id, 'quantity' => 1]],
             'customer_name' => 'Juan Dela Cruz',
             'customer_phone' => '09171234567',
@@ -207,7 +207,7 @@ class LowStockTaggingTest extends TestCase
 
         $this->linkItemToService($service, $item, 1);
 
-        $this->post('/book', [
+        $this->actingAs($this->makeUser())->post('/book', [
             'services' => [['service_id' => $service->id, 'quantity' => 1]],
             'customer_name' => 'Juan Dela Cruz',
             'customer_phone' => '09171234567',

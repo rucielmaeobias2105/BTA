@@ -109,12 +109,14 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('admin.reviews.destroy', $review) }}" class="shrink-0"
-                              onsubmit="return confirm('Delete this review? The customer will not be able to re-submit it.')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                        </form>
+                        @can('admin.reviews.manage')
+                            <form method="POST" action="{{ route('admin.reviews.destroy', $review) }}" class="shrink-0"
+                                  onsubmit="return confirm('Delete this review? The customer will not be able to re-submit it.')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                            </form>
+                        @endcan
                     </div>
                 </article>
             @endforeach

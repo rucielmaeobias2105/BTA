@@ -51,7 +51,9 @@
         <div class="xl:col-span-2">
             <x-ui.card title="Revenue Chart" subtitle="Last 14 days (confirmed, in-progress and completed bookings).">
                 <x-slot:actions>
-                    <a href="{{ route('admin.reports.index') }}" class="text-xs font-medium text-primary underline underline-offset-2">Full report</a>
+                    @can('admin.reports.view')
+                        <a href="{{ route('admin.reports.index') }}" class="text-xs font-medium text-primary underline underline-offset-2">Full report</a>
+                    @endcan
                 </x-slot:actions>
 
                 <div class="flex h-56 items-end gap-1.5 pt-4">

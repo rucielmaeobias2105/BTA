@@ -86,7 +86,9 @@ class UserController extends Controller
      */
     public function destroy(User $user): RedirectResponse
     {
-        if ($user->id === auth('admin')->id) {
+        // auth('admin') resolves to the guard, so the user has to be pulled
+        // off it explicitly before reading the id.
+        if ($user->id === auth('admin')->user()?->id) {
             return back()->withErrors(['user' => 'You cannot delete your own admin-linked account.']);
         }
 

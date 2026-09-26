@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Appointment;
-use App\Models\Review;
 use App\Models\Service;
 use App\Models\SalonSetting;
 use App\Support\PromoBanner;
@@ -27,11 +25,7 @@ class HomeController extends Controller
                 ->orderBy('category')
                 ->take(6)
                 ->get(),
-            'categories' => Service::categories(),
-            'promo' => PromoBanner::current(),
-            'reviewCount' => Review::query()->count(),
-            'averageRating' => round((float) Review::query()->avg('rating'), 1),
-            'upcomingCount' => Appointment::query()->upcoming()->count(),
+            'promos' => PromoBanner::all(),
         ]);
     }
 

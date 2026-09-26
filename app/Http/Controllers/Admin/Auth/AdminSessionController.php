@@ -29,7 +29,7 @@ class AdminSessionController extends Controller
     {
         return view('admin.auth.login', [
             'panelTitle' => 'Salon Management,<br>At Your Fingertips.',
-            'panelText' => 'Appointments, services, inventory and reports — all in one place.',
+            'panelScript' => 'every screen in one place.',
         ]);
     }
 

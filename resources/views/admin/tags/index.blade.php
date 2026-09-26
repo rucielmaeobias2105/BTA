@@ -44,15 +44,17 @@
 
                 <x-ui.card title="Items" subtitle="Select rows to tag several at once, or tag an item inline.">
                     <x-slot:actions>
-                        <div class="flex items-end gap-2" x-show="selected.length > 0" x-cloak>
-                            <select name="status_tag" class="input w-40 py-1.5 text-xs" x-model="bulkTag">
-                                <option value="">Choose tag…</option>
-                                @foreach ($tagOptions as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <button type="submit" class="btn-primary btn-sm" x-bind:disabled="bulkTag === ''">Apply to <span x-text="selected.length"></span></button>
-                        </div>
+                        @can('admin.tags.manage')
+                            <div class="flex items-end gap-2" x-show="selected.length > 0" x-cloak>
+                                <select name="status_tag" class="input w-40 py-1.5 text-xs" x-model="bulkTag">
+                                    <option value="">Choose tag…</option>
+                                    @foreach ($tagOptions as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn-primary btn-sm" x-bind:disabled="bulkTag === ''">Apply to <span x-text="selected.length"></span></button>
+                            </div>
+                        @endcan
                     </x-slot:actions>
 
                     @if ($items->isEmpty())
@@ -62,25 +64,31 @@
                             <table class="bta-table">
                                 <thead>
                                     <tr>
-                                        <th class="w-10">
-                                            <input type="checkbox" class="checkbox" x-model="all" @change="toggleAll" aria-label="Select all">
-                                        </th>
+                                        @can('admin.tags.manage')
+                                            <th class="w-10">
+                                                <input type="checkbox" class="checkbox" x-model="all" @change="toggleAll" aria-label="Select all">
+                                            </th>
+                                        @endcan
                                         <th>Item</th>
                                         <th class="text-right">Quantity</th>
                                         <th class="text-right">Reorder At</th>
                                         <th>Suggested</th>
                                         <th>Current Tag</th>
-                                        <th>Change To</th>
+                                        @can('admin.tags.manage')
+                                            <th>Change To</th>
+                                        @endcan
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($items as $item)
                                         @php $suggested = $item->suggestedTag(); @endphp
                                         <tr @class(['bg-status-low-stock-bg/25' => $item->isLowOnStock()])>
-                                            <td>
-                                                <input type="checkbox" class="checkbox" name="items[]" value="{{ $item->id }}"
-                                                       x-model="selected" aria-label="Select {{ $item->name }}">
-                                            </td>
+                                            @can('admin.tags.manage')
+                                                <td>
+                                                    <input type="checkbox" class="checkbox" name="items[]" value="{{ $item->id }}"
+                                                           x-model="selected" aria-label="Select {{ $item->name }}">
+                                                </td>
+                                            @endcan
                                             <td>
                                                 <p class="font-medium text-primary">{{ $item->name }}</p>
                                                 <p class="font-mono text-xs text-ink-muted">{{ $item->sku }}</p>
@@ -94,18 +102,20 @@
                                                     <span class="mt-1 block text-[10px] italic text-ink-muted">override</span>
                                                 @endif
                                             </td>
-                                            <td>
-                                                <form method="POST" action="{{ route('admin.tags.update', $item) }}" class="flex items-center gap-1.5">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <select name="status_tag" class="input w-36 py-1.5 text-xs" onchange="this.form.submit()">
-                                                        @foreach ($tagOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected($item->status_tag->value === $value)>{{ $label }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <noscript><button type="submit" class="btn-primary btn-sm">Set</button></noscript>
-                                                </form>
-                                            </td>
+                                            @can('admin.tags.manage')
+                                                <td>
+                                                    <form method="POST" action="{{ route('admin.tags.update', $item) }}" class="flex items-center gap-1.5">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <select name="status_tag" class="input w-36 py-1.5 text-xs" onchange="this.form.submit()">
+                                                            @foreach ($tagOptions as $value => $label)
+                                                                <option value="{{ $value }}" @selected($item->status_tag->value === $value)>{{ $label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <noscript><button type="submit" class="btn-primary btn-sm">Set</button></noscript>
+                                                    </form>
+                                                </td>
+                                            @endcan
                                         </tr>
                                     @endforeach
                                 </tbody>

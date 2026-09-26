@@ -10,10 +10,12 @@
         description="Versioned content per category. Publishing a version retires the previous one and updates the customer-facing pages."
     >
         <x-slot:actions>
-            <a href="{{ route('admin.terms.create') }}" class="btn-primary btn-sm">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                New Version
-            </a>
+            @can('admin.terms.manage')
+                <a href="{{ route('admin.terms.create') }}" class="btn-primary btn-sm">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    New Version
+                </a>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -28,7 +30,9 @@
 
             <x-ui.card :title="$category->label().' Terms'">
                 <x-slot:actions>
-                    <a href="{{ route('admin.terms.create', ['category' => $category->value]) }}" class="text-xs font-medium text-primary underline underline-offset-2">Add version</a>
+                    @can('admin.terms.manage')
+                        <a href="{{ route('admin.terms.create', ['category' => $category->value]) }}" class="text-xs font-medium text-primary underline underline-offset-2">Add version</a>
+                    @endcan
                 </x-slot:actions>
 
                 <div class="mb-4 flex flex-wrap items-center gap-2.5 rounded-xl bg-linen/60 px-4 py-3">
@@ -70,24 +74,26 @@
                                     </p>
                                 </div>
 
-                                <div class="flex shrink-0 flex-wrap items-center gap-1.5">
-                                    <a href="{{ route('admin.terms.edit', $version) }}" class="btn-secondary btn-sm">Edit</a>
+                                @can('admin.terms.manage')
+                                    <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+                                        <a href="{{ route('admin.terms.edit', $version) }}" class="btn-secondary btn-sm">Edit</a>
 
-                                    @unless ($version->is_published)
-                                        <form method="POST" action="{{ route('admin.terms.publish', $version) }}"
-                                              onsubmit="return confirm('Publish version {{ $version->version }}? The current live version will be retired.')">
-                                            @csrf
-                                            <button type="submit" class="btn-primary btn-sm">Publish</button>
-                                        </form>
+                                        @unless ($version->is_published)
+                                            <form method="POST" action="{{ route('admin.terms.publish', $version) }}"
+                                                  onsubmit="return confirm('Publish version {{ $version->version }}? The current live version will be retired.')">
+                                                @csrf
+                                                <button type="submit" class="btn-primary btn-sm">Publish</button>
+                                            </form>
 
-                                        <form method="POST" action="{{ route('admin.terms.destroy', $version) }}"
-                                              onsubmit="return confirm('Delete draft version {{ $version->version }}?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                        </form>
-                                    @endunless
-                                </div>
+                                            <form method="POST" action="{{ route('admin.terms.destroy', $version) }}"
+                                                  onsubmit="return confirm('Delete draft version {{ $version->version }}?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                                            </form>
+                                        @endunless
+                                    </div>
+                                @endcan
                             </li>
                         @endforeach
                     </ul>

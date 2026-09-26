@@ -90,17 +90,21 @@
                                 <td>
                                     <div class="flex justify-end gap-1.5">
                                         <a href="{{ route('admin.users.show', $user) }}" class="btn-secondary btn-sm">View</a>
-                                        <form method="POST" action="{{ route('admin.users.status', $user) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="btn-gold btn-sm">{{ $user->is_active ? 'Deactivate' : 'Reactivate' }}</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
-                                              onsubmit="return confirm('Delete {{ $user->full_name }}? Their appointment history is kept for reporting.')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                        </form>
+                                        @can('admin.users.manage')
+                                            <form method="POST" action="{{ route('admin.users.status', $user) }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="btn-gold btn-sm">{{ $user->is_active ? 'Deactivate' : 'Reactivate' }}</button>
+                                            </form>
+                                        @endcan
+                                        @can('admin.users.delete')
+                                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
+                                                  onsubmit="return confirm('Delete {{ $user->full_name }}? Their appointment history is kept for reporting.')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                                            </form>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

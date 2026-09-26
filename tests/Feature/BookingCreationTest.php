@@ -17,6 +17,15 @@ class BookingCreationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Bookings are always tied to an account, so the suite signs in by
+        // default. Tests that need a guest call forgetGuards() first.
+        $this->actingAs($this->makeUser());
+    }
+
     private function payload(array $overrides = []): array
     {
         $service = $this->makeService(['price' => 600]);
@@ -73,17 +82,29 @@ class BookingCreationTest extends TestCase
         $this->assertEquals(300, (float) $appointment->down_payment_amount);
     }
 
-    public function test_a_guest_can_create_a_booking_without_an_account(): void
+    public function test_a_guest_must_log_in_before_booking(): void
+    {
+        Notification::fake();
+        $this->app['auth']->forgetGuards();
+
+        // Guests may browse the catalogue but every booking is tied to an
+        // account, so the form and the POST are both behind auth.
+        $this->get('/book')->assertRedirect(route('login'));
+
+        $this->post('/book', $this->payload())->assertRedirect(route('login'));
+
+        $this->assertNull(Appointment::first());
+    }
+
+    public function test_a_deactivated_customer_cannot_book(): void
     {
         Notification::fake();
 
-        $this->post('/book', $this->payload());
+        $user = $this->makeUser(['is_active' => false]);
 
-        $appointment = Appointment::first();
+        $this->actingAs($user)->post('/book', $this->payload());
 
-        $this->assertNotNull($appointment);
-        $this->assertNull($appointment->user_id);
-        $this->assertSame('Juan Dela Cruz', $appointment->customer_name);
+        $this->assertNull(Appointment::first());
     }
 
     public function test_a_reference_number_is_generated_automatically(): void

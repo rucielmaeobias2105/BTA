@@ -112,12 +112,14 @@
                                     @if ($affected > 0)
                                         <span class="badge badge-pending">{{ $affected }} booking{{ $affected === 1 ? '' : 's' }}</span>
                                     @endif
-                                    <form method="POST" action="{{ route('admin.calendar.destroy', $block) }}"
-                                          onsubmit="return confirm('Unblock {{ $block->range_label }}?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn-danger btn-sm">Unblock</button>
-                                    </form>
+                                    @can('admin.calendar.manage')
+                                        <form method="POST" action="{{ route('admin.calendar.destroy', $block) }}"
+                                              onsubmit="return confirm('Unblock {{ $block->range_label }}?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn-danger btn-sm">Unblock</button>
+                                        </form>
+                                    @endcan
                                 </div>
                             </li>
                         @endforeach
@@ -126,8 +128,10 @@
             </x-ui.card>
         </div>
 
-        {{-- Sidebar: add block + settings --}}
-        <aside class="space-y-6">
+        {{-- Sidebar: add block + settings. Both are write screens, so a
+             read-only role (Staff) does not see them at all. --}}
+        @can('admin.calendar.manage')
+            <aside class="space-y-6">
             <x-ui.card title="Block a Date" subtitle="Single day or a range.">
                 <form method="POST" action="{{ route('admin.calendar.store') }}" class="space-y-4" novalidate>
                     @csrf
@@ -195,6 +199,7 @@
                     <button type="submit" class="btn-primary w-full">Save Settings</button>
                 </form>
             </x-ui.card>
-        </aside>
+            </aside>
+        @endcan
     </div>
 @endsection

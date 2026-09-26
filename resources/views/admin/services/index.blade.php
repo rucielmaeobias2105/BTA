@@ -10,10 +10,12 @@
         description="Add, edit and remove services, including short/long hair style variants."
     >
         <x-slot:actions>
-            <a href="{{ route('admin.services.create') }}" class="btn-primary btn-sm">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Add Service
-            </a>
+            @can('admin.catalog.manage')
+                <a href="{{ route('admin.services.create') }}" class="btn-primary btn-sm">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add Service
+                </a>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -44,7 +46,9 @@
     @if ($services->isEmpty())
         <x-ui.empty title="No services found" description="Add your first service to get started.">
             <x-slot:action>
-                <a href="{{ route('admin.services.create') }}" class="btn-primary">Add Service</a>
+                @can('admin.catalog.manage')
+                    <a href="{{ route('admin.services.create') }}" class="btn-primary">Add Service</a>
+                @endcan
             </x-slot:action>
         </x-ui.empty>
     @else
@@ -60,7 +64,9 @@
                             <th class="text-right">Duration</th>
                             <th class="text-center">Items</th>
                             <th class="text-center">Status</th>
-                            <th class="text-right">Actions</th>
+                            @can('admin.catalog.manage')
+                                <th class="text-right">Actions</th>
+                            @endcan
                         </tr>
                     </thead>
                     <tbody>
@@ -96,18 +102,20 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="flex justify-end gap-1.5">
-                                        <a href="{{ route('admin.services.variants', $service) }}" class="btn-ghost btn-sm" title="Variants">Variants</a>
-                                        <a href="{{ route('admin.services.edit', $service) }}" class="btn-secondary btn-sm">Edit</a>
-                                        <form method="POST" action="{{ route('admin.services.destroy', $service) }}"
-                                              onsubmit="return confirm('Delete “{{ $service->name }}”? Historical bookings keep their saved details.')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
+                                @can('admin.catalog.manage')
+                                    <td>
+                                        <div class="flex justify-end gap-1.5">
+                                            <a href="{{ route('admin.services.variants', $service) }}" class="btn-ghost btn-sm" title="Variants">Variants</a>
+                                            <a href="{{ route('admin.services.edit', $service) }}" class="btn-secondary btn-sm">Edit</a>
+                                            <form method="POST" action="{{ route('admin.services.destroy', $service) }}"
+                                                  onsubmit="return confirm('Delete “{{ $service->name }}”? Historical bookings keep their saved details.')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                @endcan
                             </tr>
                         @endforeach
                     </tbody>

@@ -21,7 +21,10 @@ class RegisteredUserController extends Controller
 {
     public function create(): View
     {
-        return view('auth.register');
+        return view('auth.register', [
+            'panelTitle' => 'Join Our<br>Beauty Family',
+            'panelScript' => 'start glowing today.',
+        ]);
     }
 
     public function store(RegisterRequest $request): RedirectResponse

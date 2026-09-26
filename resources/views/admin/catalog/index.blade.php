@@ -10,8 +10,12 @@
         description="One combined view of everything on your menu and in your stockroom."
     >
         <x-slot:actions>
-            <a href="{{ route('admin.services.create') }}" class="btn-secondary btn-sm">Add Service</a>
-            <a href="{{ route('admin.inventory.create') }}" class="btn-primary btn-sm">Add Item</a>
+            @can('admin.catalog.manage')
+                <a href="{{ route('admin.services.create') }}" class="btn-secondary btn-sm">Add Service</a>
+            @endcan
+            @can('admin.inventory.manage')
+                <a href="{{ route('admin.inventory.create') }}" class="btn-primary btn-sm">Add Item</a>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -64,7 +68,9 @@
                             </div>
                             <div class="flex shrink-0 items-center gap-2">
                                 <span class="text-sm font-semibold text-primary">₱{{ number_format((float) $service->price, 2) }}</span>
-                                <a href="{{ route('admin.services.edit', $service) }}" class="btn-ghost btn-sm">Edit</a>
+                                @can('admin.catalog.manage')
+                                    <a href="{{ route('admin.services.edit', $service) }}" class="btn-ghost btn-sm">Edit</a>
+                                @endcan
                             </div>
                         </li>
                     @endforeach
@@ -94,7 +100,9 @@
                             </div>
                             <div class="flex shrink-0 items-center gap-2">
                                 <x-ui.badge :status="$item->status_tag->badge()" :label="$item->status_tag->label()" />
-                                <a href="{{ route('admin.inventory.edit', $item) }}" class="btn-ghost btn-sm">Edit</a>
+                                @can('admin.inventory.manage')
+                                    <a href="{{ route('admin.inventory.edit', $item) }}" class="btn-ghost btn-sm">Edit</a>
+                                @endcan
                             </div>
                         </li>
                     @endforeach

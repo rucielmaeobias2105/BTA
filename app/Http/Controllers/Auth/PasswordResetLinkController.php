@@ -31,7 +31,7 @@ class PasswordResetLinkController extends Controller
             return redirect()->route('password.code');
         }
 
-        return view('auth.passwords.email');
+        return view('auth.passwords.email', ['panelTitle' => 'Account<br>Recovery', 'panelScript' => 'back to glowing in a moment.']);
     }
 
     public function store(Request $request): RedirectResponse
@@ -70,7 +70,7 @@ class PasswordResetLinkController extends Controller
             return redirect()->route('password.request');
         }
 
-        return view('auth.passwords.code');
+        return view('auth.passwords.code', ['panelTitle' => 'Confirm<br>It Is You', 'panelScript' => 'a quick code, then you are in.']);
     }
 
     public function verifyCode(Request $request): RedirectResponse
@@ -105,7 +105,7 @@ class PasswordResetLinkController extends Controller
     {
         $this->assertVerified();
 
-        return view('auth.passwords.reset');
+        return view('auth.passwords.reset', ['panelTitle' => 'Choose a<br>Stronger Secret', 'panelScript' => 'then you are back in.']);
     }
 
     public function update(Request $request): RedirectResponse
