@@ -1,3 +1,269 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ |--------------------------------------------------------------------------
+ | Balai ti Arjud design tokens
+ |--------------------------------------------------------------------------
+ | Single source of truth for the palette. Values sampled from the supplied
+ | reference mockup (UI.jpg "Themed Palette" swatches and the hero board).
+ */
+@layer base {
+    :root {
+        /* Brand */
+        --color-primary: 110 33 27; /* #6E211B deep maroon - sampled CTA/H1/emblem */
+        --color-primary-dark: 74 23 18; /* #4A1712 hover/active */
+        --color-primary-light: 143 62 52; /* #8F3E34 subtle maroon tint */
+
+        --color-gold: 201 162 75; /* #C9A24B accent */
+        --color-gold-light: 232 216 168; /* #E8D8A8 */
+        --color-gold-dark: 165 130 51; /* #A58233 */
+
+        --color-sienna: 140 91 62; /* #8C5B3E secondary accent */
+        --color-blush: 232 201 192; /* #E8C9C0 soft badge bg */
+
+        /* Neutrals */
+        --color-linen: 246 239 227; /* #F6EFE3 page background */
+        --color-cream: 251 247 239; /* #FBF7EF card background */
+        --color-text-dark: 46 34 32; /* #2E2220 */
+        --color-text-muted: 107 90 82; /* #6B5A52 */
+
+        /* Status badges - Pending muted gold/tan */
+        --color-status-pending: 122 92 41;
+        --color-status-pending-bg: 244 231 205;
+        /* Confirmed green */
+        --color-status-confirmed: 30 106 74;
+        --color-status-confirmed-bg: 216 238 226;
+        /* In Progress amber/orange */
+        --color-status-progress: 154 84 12;
+        --color-status-progress-bg: 250 226 197;
+        /* Completed green (solid) */
+        --color-status-completed: 22 101 68;
+        --color-status-completed-bg: 27 122 84;
+        /* Cancelled red/maroon */
+        --color-status-cancelled: 132 32 26;
+        --color-status-cancelled-bg: 246 220 217;
+        /* Low Stock tan/orange warning */
+        --color-status-low-stock: 143 82 21;
+        --color-status-low-stock-bg: 245 220 190;
+        /* Best Seller gold */
+        --color-status-best-seller: 112 82 24;
+        --color-status-best-seller-bg: 240 217 165;
+        /* Sold Out red */
+        --color-status-sold-out: 141 32 26;
+        --color-status-sold-out-bg: 249 214 211;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        @apply bg-linen font-sans text-ink antialiased;
+    }
+
+    h1, h2, h3, h4, .font-display {
+        @apply font-display;
+    }
+
+    /* Visible, on-brand focus ring for keyboard users. */
+    :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+        @apply outline-none ring-2 ring-gold ring-offset-2 ring-offset-cream;
+    }
+
+    /* Date/number inputs: keep the native picker icon legible on cream. */
+    input[type='date']::-webkit-calendar-picker-indicator,
+    input[type='time']::-webkit-calendar-picker-indicator,
+    input[type='datetime-local']::-webkit-calendar-picker-indicator {
+        opacity: 0.55;
+        cursor: pointer;
+    }
+}
+
+@layer components {
+    /* ---------------------------------------------------------------------
+     | Surfaces
+     |------------------------------------------------------------------*/
+    .bta-card {
+        @apply rounded-card border border-gold/25 bg-cream shadow-card;
+    }
+
+    .bta-card-panelled {
+        @apply rounded-card border border-primary/10 bg-cream shadow-panel;
+    }
+
+    .bta-divider {
+        @apply h-px w-full border-0 bg-gradient-to-r from-transparent via-gold/40 to-transparent;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Buttons
+     |------------------------------------------------------------------*/
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-pill px-5 py-2.5
+               text-sm font-medium transition duration-200 disabled:cursor-not-allowed
+               disabled:opacity-50;
+    }
+
+    .btn-primary {
+        @apply btn bg-primary text-cream shadow-card hover:bg-primary-dark
+               hover:shadow-card-hover active:translate-y-px;
+    }
+
+    .btn-secondary {
+        @apply btn border border-primary/70 bg-transparent text-primary
+               hover:bg-primary hover:text-cream;
+    }
+
+    .btn-gold {
+        @apply btn border border-gold bg-transparent text-gold-dark hover:bg-gold hover:text-ink;
+    }
+
+    .btn-ghost {
+        @apply btn bg-transparent text-ink-muted hover:bg-primary/5 hover:text-primary;
+    }
+
+    .btn-danger {
+        @apply btn border border-status-cancelled/60 bg-transparent text-status-cancelled
+               hover:bg-status-cancelled hover:text-cream;
+    }
+
+    .btn-sm {
+        @apply px-3.5 py-1.5 text-xs;
+    }
+
+    .btn-lg {
+        @apply px-7 py-3.5 text-base;
+    }
+
+    /* "Show/Hide" is a small text link, never a button (per mockup). */
+    .toggle-link {
+        @apply cursor-pointer select-none text-xs font-medium text-primary underline-offset-2
+               hover:underline focus-visible:underline;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Badges
+     |------------------------------------------------------------------*/
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px]
+               font-semibold uppercase tracking-wide;
+    }
+
+    .badge-pending { @apply bg-status-pending-bg text-status-pending; }
+    .badge-confirmed { @apply bg-status-confirmed-bg text-status-confirmed; }
+    .badge-progress { @apply bg-status-progress-bg text-status-progress; }
+    .badge-completed { @apply bg-status-completed-bg text-cream; }
+    .badge-cancelled { @apply bg-status-cancelled-bg text-status-cancelled; }
+    .badge-lowstock { @apply bg-status-low-stock-bg text-status-low-stock; }
+    .badge-bestseller { @apply bg-status-best-seller-bg text-status-best-seller; }
+    .badge-soldout { @apply bg-status-sold-out-bg text-status-sold-out; }
+    .badge-gold { @apply bg-gold/20 text-gold-dark; }
+
+    /* ---------------------------------------------------------------------
+     | Forms
+     |------------------------------------------------------------------*/
+    .label {
+        @apply mb-1.5 block text-sm font-medium text-ink;
+    }
+
+    .input {
+        @apply block w-full rounded-xl border border-primary/20 bg-white/70 px-3.5 py-2.5
+               text-sm text-ink placeholder:text-ink-muted/60 transition
+               focus:border-gold focus:bg-white focus:outline-none
+               focus:ring-2 focus:ring-gold/40 disabled:cursor-not-allowed disabled:opacity-60;
+    }
+
+    .input-error {
+        @apply border-status-cancelled/70 focus:border-status-cancelled focus:ring-status-cancelled/30;
+    }
+
+    .input-hint {
+        @apply mt-1.5 text-xs text-ink-muted;
+    }
+
+    .input-error-text {
+        @apply mt-1.5 flex items-center gap-1 text-xs font-medium text-status-cancelled;
+    }
+
+    .checkbox {
+        @apply h-4 w-4 shrink-0 rounded border-primary/30 text-primary
+               focus:ring-2 focus:ring-gold/50 focus:ring-offset-0;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Tables (admin)
+     |------------------------------------------------------------------*/
+    .bta-table {
+        @apply w-full border-collapse text-left text-sm;
+    }
+
+    .bta-table thead th {
+        @apply whitespace-nowrap border-b border-primary/10 bg-linen/70 px-4 py-3
+               text-[11px] font-semibold uppercase tracking-wider text-ink-muted;
+    }
+
+    .bta-table tbody td {
+        @apply border-b border-primary/5 px-4 py-3 align-middle;
+    }
+
+    .bta-table tbody tr:hover {
+        @apply bg-linen/50;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Navigation
+     |------------------------------------------------------------------*/
+    .admin-nav-link {
+        @apply flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium
+               text-ink-muted transition hover:bg-primary/5 hover:text-primary;
+    }
+
+    .admin-nav-link-active {
+        @apply bg-primary text-cream shadow-card hover:bg-primary-dark hover:text-cream;
+    }
+
+    .customer-nav-link {
+        @apply relative px-1 py-2 text-sm font-medium text-ink-muted transition hover:text-primary;
+    }
+
+    .customer-nav-link-active {
+        @apply text-primary after:absolute after:inset-x-0 after:-bottom-0.5 after:mx-auto
+               after:h-0.5 after:w-8 after:rounded-full after:bg-primary;
+    }
+}
+
+@layer utilities {
+    /* Decorative corner flourish used behind hero/section panels. */
+    .flourish::before,
+    .flourish::after {
+        content: '';
+        position: absolute;
+        width: 6rem;
+        height: 6rem;
+        border-color: rgb(var(--color-gold) / 0.35);
+        pointer-events: none;
+    }
+
+    .flourish::before {
+        top: 0.75rem;
+        left: 0.75rem;
+        border-top: 1px solid;
+        border-left: 1px solid;
+        border-top-left-radius: 1rem;
+    }
+
+    .flourish::after {
+        right: 0.75rem;
+        bottom: 0.75rem;
+        border-right: 1px solid;
+        border-bottom: 1px solid;
+        border-bottom-right-radius: 1rem;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

@@ -2,47 +2,86 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
+    use Notifiable;
+    use SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
+        'contact_number',
         'password',
+        'profile_photo_path',
+        'is_active',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        return Str::upper(Str::substr((string) $this->first_name, 0, 1).Str::substr((string) $this->last_name, 0, 1));
+    }
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        return $this->profile_photo_path ? asset('storage/'.$this->profile_photo_path) : null;
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class)->latest();
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->latest();
+    }
+
+    /** Completed appointments that have not yet been rated. */
+    public function reviewableAppointments()
+    {
+        return $this->appointments()
+            ->where('status', \App\Enums\AppointmentStatus::Completed->value)
+            ->whereDoesntHave('review');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /** Route model binding uses the id; this keeps display helpers tidy. */
+    public function getRouteKeyName(): string
+    {
+        return 'id';
     }
 }
