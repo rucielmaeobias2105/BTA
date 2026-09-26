@@ -16,6 +16,9 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email')->unique();
+            // Derived from the email at registration so the login screen can
+            // offer "Username or Email" without an extra register field.
+            $table->string('username', 64)->unique();
             $table->string('contact_number', 32);
             $table->string('password');
             $table->string('profile_photo_path')->nullable();

@@ -26,10 +26,12 @@
         />
 
         <div class="min-w-0">
-            @if ($label)
+            @if ($label || ! $slot->isEmpty())
                 <label for="{{ $id }}" class="cursor-pointer select-none text-sm text-ink">
                     {{ $label }}
                     @if ($required)<span class="text-status-cancelled">*</span>@endif
+                    {{-- Extra inline content (e.g. a link to the T&C text). --}}
+                    @if (! $slot->isEmpty())<span>{{ $slot }}</span>@endif
                 </label>
             @endif
 

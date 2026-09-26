@@ -20,6 +20,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'first_name',
         'last_name',
         'email',
+        'username',
         'contact_number',
         'password',
         'profile_photo_path',
@@ -77,6 +78,32 @@ class User extends Authenticatable implements MustVerifyEmail
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Derive a unique, URL-safe username from an email address.
+     * Used at registration so customers can sign in with "Username or Email".
+     */
+    public static function deriveUsername(string $email): string
+    {
+        $base = Str::of(Str::before($email, '@'))
+            ->lower()
+            ->replaceMatches('/[^a-z0-9._-]+/', '')
+            ->substr(0, 40)
+            ->toString();
+
+        if ($base === '') {
+            $base = 'guest';
+        }
+
+        $candidate = $base;
+        $suffix = 1;
+
+        while (static::where('username', $candidate)->exists()) {
+            $candidate = $base.'-'.(++$suffix);
+        }
+
+        return $candidate;
     }
 
     /** Route model binding uses the id; this keeps display helpers tidy. */

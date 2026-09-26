@@ -65,8 +65,8 @@
         @apply bg-linen font-sans text-ink antialiased;
     }
 
-    h1, h2, h3, h4, .font-display {
-        @apply font-display;
+    h1, h2, h3, h4 {
+        font-family: theme('fontFamily.display');
     }
 
     /* Visible, on-brand focus ring for keyboard users. */

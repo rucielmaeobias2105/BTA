@@ -12,6 +12,9 @@ class AppointmentStatusHistory extends Model
 {
     use HasFactory;
 
+    /** Explicit: the table is `appointment_status_history` (singular). */
+    protected $table = 'appointment_status_history';
+
     protected $fillable = [
         'appointment_id',
         'from_status',

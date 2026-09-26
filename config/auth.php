@@ -36,9 +36,17 @@ return [
     */
 
     'guards' => [
+        // Customers
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+        ],
+
+        // Staff. Deliberately a separate guard + session so a customer session
+        // can never be escalated to the admin panel (and vice versa).
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admins',
         ],
     ],
 
@@ -65,10 +73,10 @@ return [
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'admins' => [
+            'driver' => 'eloquent',
+            'model' => env('ADMIN_MODEL', App\Models\Admin::class),
+        ],
     ],
 
     /*

@@ -23,7 +23,7 @@ class BlockedDate extends Model
     {
         return [
             'start_date' => 'date',
-            'end_date' => 'date:Y-m-d',
+            'end_date' => 'date',
         ];
     }
 
@@ -32,14 +32,22 @@ class BlockedDate extends Model
         return $this->belongsTo(Service::class);
     }
 
+    /**
+     * A single-day block is stored as start_date === end_date; default the
+     * end date so callers never have to handle a null range.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $blocked) {
+            if (blank($blocked->end_date)) {
+                $blocked->end_date = $blocked->start_date;
+            }
+        });
+    }
+
     public function admin(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'created_by');
-    }
-
-    public function getEndDateAttribute($value): ?string
-    {
-        return $value;
     }
 
     public function isSingleDay(): bool
