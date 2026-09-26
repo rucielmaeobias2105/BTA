@@ -120,12 +120,48 @@ dates and 3 contact messages — enough to exercise every screen and report.
 
 ## Running the app
 
-```bash
-php artisan serve
-```
+There are two supported ways to run it locally. Both serve the same code and the
+same database, and both can be used at the same time.
+
+### Option A — XAMPP / Apache (no extra scripts)
+
+The project already lives in the XAMPP web root, so if Apache is running you can
+just browse to:
+
+- Customer site: <http://localhost/BTA/public/>
+- Admin panel: <http://localhost/BTA/public/admin/login>
+
+Nothing to start or stop. `public/.htaccess` handles the rewriting, and Laravel
+derives the `/BTA/public` base path from the request, so generated asset URLs are
+correct.
+
+### Option B — detached dev server on port 8000
+
+Use this when you want the site to stay up independently of Apache, or to keep
+working on port 8000 while Apache serves the same app.
+
+| Script | What it does |
+| --- | --- |
+| `dev-up.bat` | Starts a hidden supervisor, waits until the site really answers, then opens your browser. Closing the window does **not** stop the site. |
+| `dev-down.bat` | Gracefully stops the supervisor and the port-8000 server. Apache and MySQL are left alone. |
+
+The supervisor (`tools/dev-supervisor.ps1`) checks the app every few seconds and
+restarts `php artisan serve` if it dies or stops answering, and it restarts MySQL
+if the database goes away. It passes `--port=8000` explicitly, because
+`artisan serve` otherwise silently moves to 8001/8002 when the port is busy.
+
+Plain `php artisan serve` still works too, it just stops when you close the
+terminal.
 
 - Customer site: <http://localhost:8000>
 - Admin panel: <http://localhost:8000/admin/login>
+- Supervisor log: `storage/logs/dev-supervisor.log`
+- Dev server log: `storage/logs/serve.log`
+
+> Cold start is slow on this machine: the dev server needs roughly 45s to accept
+> its first connection and the first request can take another ~2 minutes while
+> Laravel compiles config and views. `dev-up.bat` waits for the site to genuinely
+> answer before opening the browser, so it will not drop you on an error page.
 
 Customer and admin sessions are **completely isolated** — they use separate guards
 (`web`/`users` and `admin`/`admins`), separate tables and separate session state. Being
@@ -135,13 +171,66 @@ tests in `tests/Feature/LoginTest.php`.
 
 ---
 
+## Access model
+
+Three kinds of visitor, one admin panel with three roles.
+
+### Visitor ("user")
+
+A signed-out visitor may browse everything public — home, services, both service
+grid views, service detail, about, contact and the published T&C — but **cannot book**.
+`GET /book` and `POST /book` sit behind `auth`, so a guest is redirected to the login
+form and returned to the booking page afterwards (`redirect()->intended()`).
+
+### Customer
+
+A registered, active account (`users` table, `web` guard) may book, manage their own
+appointments (view, cancel, reschedule, rate), read notifications and maintain their
+profile. Every booking is tied to `user_id`, so history is always attributable.
+Deactivating an account immediately blocks the booking form and the rest of the
+customer area via the `user.active` middleware.
+
+### Admin
+
+Staff log in on the separate `admin` guard against the `admins` table. All three roles
+share one panel, but `App\Enums\AdminRole::abilities()` decides what each may reach.
+That one table drives both halves of enforcement:
+
+- **Routes** — `admin.role:admin.<ability>` middleware (`App\Http\Middleware\EnsureAdminRole`)
+- **Views** — `@can('admin.<ability>')`, so a button is never shown to a role the
+  server would reject anyway
+
+> Laravel's built-in `can:` middleware authorises against the **default** guard, which
+> here is the customer `web` guard. Since admins authenticate on `admin`, `can:` would
+> see no user and deny every admin — hence `EnsureAdminRole`, which reads the admin
+> guard explicitly.
+
+| Ability | Super Admin | Manager | Staff |
+| --- | :---: | :---: | :---: |
+| Dashboard, Appointments (status/notes/down-payment) | ✓ | ✓ | ✓ |
+| Calendar, Catalogue, Inventory, Registered Users, Reviews (view) | ✓ | ✓ | ✓ |
+| Calendar (block dates, operating hours) | ✓ | ✓ | — |
+| Catalogue, Inventory, Low-Stock Tags, Promos, Messages (write) | ✓ | ✓ | — |
+| Registered Users (deactivate/reactivate) | ✓ | ✓ | — |
+| Registered Users (delete) | ✓ | — | — |
+| Terms & Conditions (view) | ✓ | ✓ | — |
+| Terms & Conditions (edit, publish, delete) | ✓ | — | — |
+| Reports | ✓ | ✓ | — |
+
+Super Admin holds every ability implicitly, so adding a new one only needs wiring up
+once. The sidebar renders **Main / Catalog / Operations / System** groups and omits any
+screen the signed-in role cannot open, so a narrower role never meets a dead link. The
+whole matrix is covered by `tests/Feature/AdminRoleTest.php`.
+
+---
+
 ## Running the tests
 
 ```bash
 php artisan test
 ```
 
-**100 tests, 338 assertions**, all passing. The suite defaults to an **in-memory SQLite**
+**114 tests, 450 assertions**, all passing. The suite defaults to an **in-memory SQLite**
 database (see `phpunit.xml`) so it needs no database server and is fully isolated.
 
 To run the same suite against MySQL, override the connection in the environment:
@@ -163,10 +252,11 @@ The full suite has been verified green on **both** SQLite and MySQL/MariaDB.
 | --- | --- | --- |
 | `RegistrationTest` | 12 | Registration screen, successful signup, hashed password, derived username, unique + valid email, min-8 password, confirmation match, terms acceptance, welcome notification |
 | `LoginTest` | 15 | Email **and** username login, case-insensitivity, wrong password, unknown account, **rate limiting**, deactivated accounts, logout, guest redirects, **admin/customer guard isolation** |
-| `BookingCreationTest` | 21 | Booking creation, guest bookings, reference format, price snapshotting, variant pricing, multi-service totals, every validation rule, operating hours, admin-blocked dates, slot collisions, allergy merging, slot-lookup endpoint |
+| `BookingCreationTest` | 22 | Booking creation, **guests forced to log in**, deactivated accounts, reference format, price snapshotting, variant pricing, multi-service totals, every validation rule, operating hours, admin-blocked dates, slot collisions, allergy merging, slot-lookup endpoint |
 | `AppointmentStatusUpdateTest` | 17 | Approve / decline / advance status, status history with `from` → `to` and actor, internal-only admin notes, manual GCash verification, authorization, customer cancellation |
 | `LowStockTaggingTest` | 20 | The `quantity <= threshold` rule, sold-out derivation, Best Seller preservation, manual-override detection, single + bulk tagging, **auto-flagging when a service is booked**, stock restored on cancellation |
 | `PublicPagesTest` | 15 | Landing, both service views, filters, contact, and the full 4-step password reset (hash-only storage, no account enumeration, single-use codes) |
+| `AdminRoleTest` | 13 | The ability matrix itself, per-role page access, per-role write-route denial, hidden write buttons, sidebar filtering per role, customer/admin guard isolation |
 
 ### HTTP smoke tests
 
@@ -196,7 +286,7 @@ CSV export, registration, booking and cancellation.
 | 2 | Login (username or email, rate limited) | `GET/POST /login` |
 | 3 | Forgot password — 4 steps: email → 6-digit code → new password → confirm | `GET/POST /password`, `/password/code`, `/password/reset` |
 | 4 | Browse services (public, search + category + price filters) | `GET /services` |
-| 5 | Book appointment + auto-generated booking summary | `GET/POST /book`, `GET /appointments`, `/appointments/{id}` |
+| 5 | Book appointment + auto-generated booking summary (sign-in required) | `GET/POST /book`, `GET /appointments`, `/appointments/{id}` |
 | 6 | My appointments / transactions (status filter, action buttons only) | `GET /appointments?status=` |
 | 7 | Cancel appointment (auto-filled reference, reason, policy checkbox) | `GET/PATCH /appointments/{id}/cancel` |
 | 8 | Reschedule appointment (current slot read-only, re-validated) | `GET/PATCH /appointments/{id}/reschedule` |
@@ -243,7 +333,8 @@ app/
 │   │   ├── Auth/                             register, login, 4-step password reset
 │   │   └── Customer/                         appointments, cancel, reschedule,
 │   │                                        rate, notifications, profile, dashboard
-│   ├── Middleware/                          AuthenticateAdmin, EnsureUserIsActive,
+│   ├── Middleware/                          AuthenticateAdmin, EnsureAdminRole,
+│   │                                        EnsureUserIsActive,
 │   │                                        RedirectIfAuthenticated{,Admin}
 │   └── Requests/                            Form Request validation
 │                                            (Auth/, Admin/, Customer/)
