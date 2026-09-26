@@ -21,3 +21,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Dev-server supervisor runtime files (see dev-up.bat / dev-down.bat)
+/storage/dev-supervisor.pid
+/storage/dev-supervisor.stop
+/storage/dev-server.ready
