@@ -13,11 +13,7 @@
         <p class="mt-2 text-sm text-ink-muted">Sign in with your staff credentials.</p>
     </div>
 
-    <x-ui.alert type="error" class="mb-5" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <form method="POST" action="{{ route('admin.login.store') }}" class="space-y-4" novalidate>
         @csrf

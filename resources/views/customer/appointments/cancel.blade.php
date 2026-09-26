@@ -15,11 +15,7 @@
             description="Tell us why you'd like to cancel. This cannot be undone."
         />
 
-        <x-ui.alert type="error" class="mb-6" :dismissible="false">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </x-ui.alert>
+        <x-ui.errors />
 
         {{-- Reference auto-filled from context (read-only) --}}
         <div class="bta-card mb-6 p-5">

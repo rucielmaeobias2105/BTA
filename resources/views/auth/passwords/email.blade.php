@@ -10,11 +10,7 @@
         <p class="mt-2 text-sm text-ink-muted">Enter your email and we'll send you a 6-digit verification code.</p>
     </div>
 
-    <x-ui.alert type="error" class="mb-5" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <form method="POST" action="{{ route('password.email') }}" class="space-y-4" novalidate>
         @csrf

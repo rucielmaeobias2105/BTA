@@ -17,11 +17,7 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <div class="mb-5 grid gap-4 sm:grid-cols-3">
         <div class="bta-card p-4">

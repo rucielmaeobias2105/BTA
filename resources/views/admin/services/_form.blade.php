@@ -21,11 +21,7 @@
             : 'Create a new service for the customer-facing menu.'"
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     @php $action = $service->exists ? route('admin.services.update', $service) : route('admin.services.store'); @endphp
 

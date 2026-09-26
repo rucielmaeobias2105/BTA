@@ -10,11 +10,7 @@
         <p class="mt-2 text-sm text-ink-muted">Choose a strong password you haven't used before.</p>
     </div>
 
-    <x-ui.alert type="error" class="mb-5" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <form method="POST" action="{{ route('password.update') }}" class="space-y-4" novalidate>
         @csrf

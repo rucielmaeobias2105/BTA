@@ -15,11 +15,7 @@
         :description="'Currently '.$appointment->date_time_label.' — '.$appointment->service_names"
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <form method="POST" action="{{ route('admin.appointments.update', $appointment) }}" class="max-w-3xl space-y-6" novalidate>
         @csrf

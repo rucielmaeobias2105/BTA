@@ -20,11 +20,7 @@
             description="Pick a new date and time. Your new slot is re-validated against our calendar."
         />
 
-        <x-ui.alert type="error" class="mb-6" :dismissible="false">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </x-ui.alert>
+        <x-ui.errors />
 
         {{-- Current date/time — read-only --}}
         <div class="bta-card mb-6 border-l-4 border-l-gold p-5">

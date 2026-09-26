@@ -15,11 +15,7 @@
             description="Your feedback helps our team keep improving."
         />
 
-        <x-ui.alert type="error" class="mb-6" :dismissible="false">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </x-ui.alert>
+        <x-ui.errors />
 
         {{-- Appointment recap --}}
         <div class="bta-card mb-6 border-l-4 border-l-gold p-5">

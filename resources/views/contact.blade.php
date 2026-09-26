@@ -10,11 +10,7 @@
             description="Have a question about our services, pricing or bookings? Send us a message and we'll reply as soon as we can."
         />
 
-        <x-ui.alert type="error" class="mb-6" :dismissible="false">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </x-ui.alert>
+        <x-ui.errors />
 
         <div class="grid gap-8 lg:grid-cols-3">
             {{-- Form --}}

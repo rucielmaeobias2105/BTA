@@ -26,11 +26,7 @@
             : 'Drafts can be edited freely. Publishing retires the previous version.'"
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     @php $action = $term->exists ? route('admin.terms.update', $term) : route('admin.terms.store'); @endphp
 

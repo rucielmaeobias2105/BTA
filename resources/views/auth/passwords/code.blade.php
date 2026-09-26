@@ -13,11 +13,7 @@
         </p>
     </div>
 
-    <x-ui.alert type="error" class="mb-5" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <form method="POST" action="{{ route('password.verify') }}" class="space-y-4" novalidate>
         @csrf

@@ -10,11 +10,7 @@
         description="Update the credentials you use to sign in to the admin panel."
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <form method="POST" action="{{ route('admin.profile.update') }}" class="max-w-3xl space-y-6" novalidate>
         @csrf

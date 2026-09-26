@@ -10,11 +10,7 @@
             description="Keep your contact details and profile picture up to date."
         />
 
-        <x-ui.alert type="error" class="mb-6" :dismissible="false">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </x-ui.alert>
+        <x-ui.errors />
 
         <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data" class="space-y-6" novalidate>
             @csrf

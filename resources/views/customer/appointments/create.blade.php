@@ -47,11 +47,7 @@
             description="Choose your treatments, pick a date and time, and confirm your booking."
         />
 
-        <x-ui.alert type="error" class="mb-6" :dismissible="false">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </x-ui.alert>
+        <x-ui.errors />
 
         <form
             method="POST"

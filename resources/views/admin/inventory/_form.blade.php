@@ -18,11 +18,7 @@
             : 'Create a new tracked item and link it to the services that consume it.'"
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     @php
         $action = $item->exists ? route('admin.inventory.update', $item) : route('admin.inventory.store');

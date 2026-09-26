@@ -10,11 +10,7 @@
         description="Block single dates or ranges. Customers cannot book on these dates from the booking form."
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     <div class="grid gap-6 2xl:grid-cols-3">
         {{-- Calendar grid --}}

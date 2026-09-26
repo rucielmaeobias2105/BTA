@@ -64,3 +64,7 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
+
+// Alpine's npm build does not auto-start.
+window.Alpine = Alpine;
+Alpine.start();

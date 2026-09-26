@@ -16,11 +16,7 @@
         description="Active promos surface as a site-wide banner. Use the promo list to push them to customers as notifications."
     />
 
-    <x-ui.alert type="error" class="mb-6" :dismissible="false">
-        @foreach ($errors->all() as $error)
-            <p>{{ $error }}</p>
-        @endforeach
-    </x-ui.alert>
+    <x-ui.errors />
 
     @php $action = $promo->exists ? route('admin.promos.update', $promo) : route('admin.promos.store'); @endphp
 
