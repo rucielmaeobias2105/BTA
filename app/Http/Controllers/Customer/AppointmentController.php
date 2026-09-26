@@ -57,7 +57,7 @@ class AppointmentController extends Controller
     {
         $this->authorizeOwnership($appointment);
 
-        $appointment->load(['serviceLines', 'statusHistory.changedBy', 'review']);
+        $appointment->load(['serviceLines', 'statusHistory', 'review']);
 
         return view('customer.appointments.show', [
             'appointment' => $appointment,

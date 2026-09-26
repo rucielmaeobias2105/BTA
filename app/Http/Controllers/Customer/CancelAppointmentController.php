@@ -13,6 +13,7 @@ use App\Services\BookingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CancelAppointmentController extends Controller
@@ -61,17 +62,25 @@ class CancelAppointmentController extends Controller
         }
 
         $data = $request->validate([
+            'reason_preset' => ['nullable', 'string', Rule::in(self::REASONS)],
             'reason' => ['nullable', 'string', 'max:500'],
             'agree_cancellation_policy' => ['accepted'],
         ], [
             'agree_cancellation_policy.accepted' => 'You must agree to the Cancellation Policy to proceed.',
         ]);
 
+        // The preset and the free-text note are both optional; combine them.
+        $reason = collect([$data['reason_preset'] ?? null, trim((string) ($data['reason'] ?? ''))])
+            ->filter()
+            ->unique()
+            ->join(' — ')
+            ?: null;
+
         $previous = $appointment->status;
 
         $appointment->update([
             'status' => AppointmentStatus::Cancelled,
-            'cancellation_reason' => $data['reason'] ?? null,
+            'cancellation_reason' => $reason,
             'cancelled_at' => now(),
         ]);
 
@@ -80,7 +89,7 @@ class CancelAppointmentController extends Controller
             ChangedBy::Customer,
             auth()->id(),
             $appointment->customer_name,
-            'Cancelled by customer.'.($data['reason'] ? ' Reason: '.$data['reason'] : ''),
+            'Cancelled by customer.'.($reason ? ' Reason: '.$reason : ''),
         );
 
         // Stock held for this booking goes back on the shelf.

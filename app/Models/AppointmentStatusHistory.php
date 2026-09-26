@@ -39,6 +39,22 @@ class AppointmentStatusHistory extends Model
         return $this->belongsTo(Appointment::class);
     }
 
+    /**
+     * Label for whoever made the change.
+     *
+     * `changed_by_id` is ambiguous (an admin id or a customer id depending on
+     * `changed_by`), so the denormalised `changed_by_name` is the source of
+     * truth and the enum is the fallback. Deliberately not a relation.
+     */
+    public function actorLabel(): string
+    {
+        if (filled($this->changed_by_name)) {
+            return $this->changed_by_name;
+        }
+
+        return $this->changed_by?->label() ?? 'System';
+    }
+
     public function getArrowAttribute(): string
     {
         $from = $this->from_status?->label() ?? 'Created';

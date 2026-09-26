@@ -47,7 +47,7 @@
                 <div class="border-b border-primary/10 px-4 py-3">
                     <p class="truncate text-sm font-semibold text-primary">{{ $admin->full_name }}</p>
                     <p class="truncate text-xs text-ink-muted">{{ $admin->email }}</p>
-                    <span class="badge badge-gold mt-2">{{ strtoupper($admin->role) }}</span>
+                    <span class="badge badge-gold mt-2">{{ $admin->role->label() }}</span>
                 </div>
                 <div class="p-1.5">
                     <a href="{{ route('admin.profile.edit') }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-linen">My Profile</a>
