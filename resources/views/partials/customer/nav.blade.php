@@ -7,13 +7,13 @@
 
 <header x-data="{ mobileOpen: false, profileOpen: false }" class="sticky top-0 z-40 border-b border-primary/10 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
     <div class="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <x-brand.logo href="{{ route('home') }}" size="md" />
+        <x-brand.logo href="{{ route('home') }}" size="md" image="images/logo.png" />
 
         {{-- Desktop nav --}}
         <nav class="hidden items-center gap-7 lg:flex" aria-label="Main">
             <a href="{{ route('home') }}" class="customer-nav-link {{ $current === 'home' ? 'customer-nav-link-active' : '' }}">Home</a>
             <a href="{{ route('services.index') }}" class="customer-nav-link {{ $current === 'services' ? 'customer-nav-link-active' : '' }}">Services</a>
-            <a href="{{ route('home') }}#offers" class="customer-nav-link">Promo</a>
+            <a href="{{ route('home') }}#offers" class="customer-nav-link" data-tab-title="PROMO | {{ config('app.name') }}">Promo</a>
             <a href="{{ route('about') }}" class="customer-nav-link {{ $current === 'about' ? 'customer-nav-link-active' : '' }}">About Us</a>
             <a href="{{ route('contact.create') }}" class="customer-nav-link {{ $current === 'contact' ? 'customer-nav-link-active' : '' }}">Contact</a>
         </nav>
@@ -79,7 +79,7 @@
         <nav class="mx-auto grid max-w-7xl gap-1 px-4 py-4 sm:px-6" aria-label="Mobile">
             <a href="{{ route('home') }}" class="rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-linen">Home</a>
             <a href="{{ route('services.index') }}" class="rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-linen">Services</a>
-            <a href="{{ route('home') }}#offers" class="rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-linen">Promo</a>
+            <a href="{{ route('home') }}#offers" class="rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-linen" data-tab-title="PROMO | {{ config('app.name') }}">Promo</a>
             <a href="{{ route('about') }}" class="rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-linen">About Us</a>
             <a href="{{ route('contact.create') }}" class="rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-linen">Contact</a>
 

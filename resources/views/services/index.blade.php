@@ -1,13 +1,13 @@
 @extends('layouts.customer')
 
-@section('title', 'Browse Services')
+@section('title', 'Services')
 
 @section('content')
     <div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <x-ui.page-header
-            eyebrow="Our Menu"
+            eyebrow=""
             title="Browse Services"
-            description="Explore our full treatment menu. Filter by category or price to find the perfect service for you."
+            description=""
         >
             <x-slot:actions>
                 <a href="{{ route('services.refined') }}" class="btn-secondary btn-sm">
@@ -20,80 +20,14 @@
         </x-ui.page-header>
 
         {{-- Search + filters --}}
-        <form method="GET" action="{{ route('services.index') }}" class="bta-card mb-8 p-5">
-            <div class="grid gap-4 md:grid-cols-12">
-                <div class="md:col-span-5">
-                    <x-ui.form.input
-                        name="search"
-                        label="Search"
-                        placeholder="Search services…"
-                        :value="$filters['search'] ?? null"
-                        icon="heroicon-o-magnifying-glass"
-                    />
-                </div>
+      
 
-                <div class="md:col-span-3">
-                    <x-ui.form.select
-                        name="category"
-                        label="Category"
-                        :value="$filters['category'] ?? null"
-                        :options="collect($categories)->mapWithKeys(fn ($c) => [$c => $c])->prepend('All Categories', '')->all()"
-                    />
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 md:col-span-3">
-                    <x-ui.form.input
-                        name="min_price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        label="Min Price"
-                        placeholder="{{ number_format($priceRange['min'], 0) }}"
-                        :value="$filters['min_price'] ?? null"
-                        prefix="₱"
-                    />
-                    <x-ui.form.input
-                        name="max_price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        label="Max Price"
-                        placeholder="{{ number_format($priceRange['max'], 0) }}"
-                        :value="$filters['max_price'] ?? null"
-                        prefix="₱"
-                    />
-                </div>
-
-                <div class="flex items-end gap-2 md:col-span-1">
-                    <button type="submit" class="btn-primary w-full" aria-label="Apply filters">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
-                    </button>
-                </div>
-            </div>
-
-            <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-primary/10 pt-4">
-                <span class="text-xs font-medium text-ink-muted">Quick filters:</span>
-
-                <a href="{{ route('services.index') }}"
-                   class="rounded-pill px-3 py-1.5 text-xs font-medium transition {{ ! ($filters['category'] ?? null) ? 'bg-primary text-cream' : 'bg-linen text-ink hover:bg-linen/70' }}">All</a>
-
-                @foreach (array_slice($categories, 0, 6) as $category)
-                    <a href="{{ route('services.index', ['category' => $category]) }}"
-                       class="rounded-pill px-3 py-1.5 text-xs font-medium transition {{ ($filters['category'] ?? null) === $category ? 'bg-primary text-cream' : 'bg-linen text-ink hover:bg-linen/70' }}">{{ $category }}</a>
-                @endforeach
-
-                @if (array_filter($filters))
-                    <a href="{{ route('services.index') }}" class="ml-auto text-xs text-primary underline underline-offset-2 hover:text-primary-dark">Clear all filters</a>
-                @endif
-            </div>
-        </form>
-
-        <p class="mb-5 text-sm text-ink-muted">
+   <!--     <p class="mb-5 text-sm text-ink-muted">
             Showing <span class="font-semibold text-primary">{{ $services->total() }}</span>
             {{ \Illuminate\Support\Str::plural('service', $services->total()) }}
-        </p>
+        </p> -->
 
-        @if ($services->isEmpty())
+        @if ($services->isEmpty()) 
             <x-ui.empty
                 title="No services match your filters"
                 description="Try widening your price range or choosing a different category."

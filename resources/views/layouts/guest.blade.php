@@ -7,7 +7,10 @@
     <meta name="theme-color" content="#7A241B">
     <meta name="robots" content="noindex, nofollow">
 
-    <title>@yield('title', 'Sign in') — {{ config('app.name') }}</title>
+    @php
+        $pageTitle = Str::upper(trim($__env->yieldContent('title', 'Log In')));
+    @endphp
+    <title>{{ $pageTitle }} | {{ config('app.name') }}</title>
 
     <link rel="icon" href="{{ asset('images/tab_logo.png') }}">
 
@@ -17,7 +20,7 @@
 <body class="min-h-full bg-linen">
     <div
         class="auth-page"
-        style="--auth-visual-image: url('{{ asset('images/'.($authImage ?? 'hero-salon.jpg')) }}')"
+        style="--auth-visual-image: url('{{ asset('images/'.($authImage ?? 'hero.jpg')) }}')"
     >
         {{-- Brand panel: photo + centred wordmark. Each auth screen supplies
              its own headline so the panel speaks to that step. --}}

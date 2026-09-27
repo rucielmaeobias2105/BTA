@@ -18,13 +18,6 @@ class HomeController extends Controller
 
         return view('home', [
             'settings' => $settings,
-            'featured' => Service::query()
-                ->active()
-                ->featured()
-                ->with('variants')
-                ->orderBy('category')
-                ->take(6)
-                ->get(),
             'promos' => PromoBanner::all(),
         ]);
     }

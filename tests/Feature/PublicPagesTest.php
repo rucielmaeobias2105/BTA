@@ -20,14 +20,13 @@ class PublicPagesTest extends TestCase
     public function test_the_landing_page_renders(): void
     {
         $this->makeSalonSettings();
-        $this->makeService(['name' => 'Glow Manicure', 'slug' => 'glow-manicure', 'is_featured' => true]);
 
         $this->get('/')
             ->assertOk()
             ->assertSee('Balai ti Arjud')
             ->assertSee('Glow &amp; Co. Beauty Lounge', false)
             ->assertSee('Book an Appointment')
-            ->assertSee('Glow Manicure');
+            ->assertSee('images/hero2.jpg', false);
     }
 
     public function test_browsing_services_requires_no_authentication(): void

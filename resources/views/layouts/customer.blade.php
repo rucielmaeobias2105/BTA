@@ -6,7 +6,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#6E211B">
 
-    <title>@yield('title', 'Glow & Beauty Lounge') — {{ config('app.name') }}</title>
+    {{-- Tab title: "HOME | Balai ti Arjud". The section is upper-cased here so
+         every view keeps writing natural-cased titles. --}}
+    @php
+        $pageTitle = Str::upper(trim($__env->yieldContent('title', 'Home')));
+    @endphp
+    <title>{{ $pageTitle }} | {{ config('app.name') }}</title>
 
     <link rel="icon" href="{{ asset('images/tab_logo.png') }}">
 

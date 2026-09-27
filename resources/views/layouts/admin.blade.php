@@ -7,7 +7,10 @@
     <meta name="theme-color" content="#7A241B">
     <meta name="robots" content="noindex, nofollow">
 
-    <title>@yield('title', 'Admin') — {{ config('app.name') }} Admin</title>
+    @php
+        $pageTitle = Str::upper(trim($__env->yieldContent('title', 'Dashboard')));
+    @endphp
+    <title>{{ $pageTitle }} | {{ config('app.name') }} Admin</title>
 
     <link rel="icon" href="{{ asset('images/tab_logo.png') }}">
 

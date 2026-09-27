@@ -1,6 +1,6 @@
 @extends('layouts.customer')
 
-@section('title', 'Glow & Beauty Lounge')
+@section('title', 'Home')
 
 @section('content')
     {{-- ================= HERO ================= --}}
@@ -48,7 +48,7 @@
         </div>
 
         <div class="home-hero-media">
-            <img src="{{ asset('images/hero-salon.jpg') }}" alt="Inside Balai ti Arjud beauty lounge"
+            <img src="{{ asset('images/hero2.jpg') }}" alt="Inside Balai ti Arjud beauty lounge"
                  fetchpriority="high">
             <div class="home-gold-arc" aria-hidden="true"></div>
         </div>
@@ -56,7 +56,7 @@
 
     {{-- ================= SPECIAL OFFERS ================= --}}
     @if ($promos->isNotEmpty())
-        <section id="offers" class="home-section">
+        <section id="offers" class="home-section" data-tab-title="PROMO | {{ config('app.name') }}">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="home-head">
                     <p class="home-eyebrow">Special Offers</p>
@@ -95,112 +95,6 @@
             </div>
         </section>
     @endif
-
-    {{-- ================= SIGNATURE SERVICES ================= --}}
-    <section id="services" class="home-section">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="home-head">
-                <p class="home-eyebrow">Our Beauty Services</p>
-                <h2 class="home-title">Services that make you glow</h2>
-                <p class="home-sub">
-                    Handpicked favourites, ready to book. Prices may vary based on the actual service rendered.
-                </p>
-            </div>
-
-            <div class="home-service-grid">
-                @forelse ($featured as $service)
-                    <x-ui.service-card :service="$service" />
-                @empty
-                    <div class="home-empty">
-                        Services will appear here as soon as the salon adds them. Check back soon!
-                    </div>
-                @endforelse
-            </div>
-
-            <div class="home-more">
-                <a href="{{ route('services.index') }}" class="btn-secondary">View Full Menu &amp; Prices</a>
-            </div>
-        </div>
-    </section>
-
-    {{-- ================= ABOUT ================= --}}
-    <section id="about" class="home-section">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="home-head">
-                <p class="home-eyebrow">About Us</p>
-                <h2 class="home-title">A warm space made for your glow</h2>
-            </div>
-
-            <div class="home-about">
-                <div class="home-about-media">
-                    <img src="{{ asset('images/hero-banner.jpg') }}" alt="Inside Balai ti Arjud beauty lounge" loading="lazy">
-                </div>
-
-                <div>
-                    <p class="home-about-copy">
-                        {{ $settings->name ?? 'Balai ti Arjud — Glow & Co. Beauty Lounge' }} is a home-style beauty lounge in
-                        {{ $settings->address ?? 'Abra' }}. We blend professional care with warm Ilocano hospitality
-                        so every visit feels personal, calm, and restful.
-                    </p>
-
-                    <ul class="home-about-list">
-                        <li>
-                            <strong>Open hours:</strong>
-                            {{ \App\Models\SalonSetting::dayNames()['monday'] }}–{{ \App\Models\SalonSetting::dayNames()['friday'] }},
-                            {{ data_get($settings->operating_hours, 'monday.0') }}–{{ data_get($settings->operating_hours, 'friday.1') }}
-                        </li>
-                        <li>
-                            <strong>Saturday &amp; Sunday:</strong>
-                            {{ data_get($settings->operating_hours, 'saturday.0') }}–{{ data_get($settings->operating_hours, 'saturday.1') }} /
-                            {{ data_get($settings->operating_hours, 'sunday.0') }}–{{ data_get($settings->operating_hours, 'sunday.1') }}
-                        </li>
-                        @if ($settings->phone)
-                            <li><strong>Contact:</strong> <a href="tel:{{ $settings->phone }}" class="font-bold text-primary-light">{{ $settings->phone }}</a></li>
-                        @endif
-                        <li><strong>Book online</strong> &amp; arrive fresh — we handle the rest.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ================= GALLERY ================= --}}
-    <section id="gallery" class="home-section">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="home-head">
-                <p class="home-eyebrow">Inside the Lounge</p>
-                <h2 class="home-title">Beautiful moments, captured</h2>
-                <p class="home-sub">Step in, relax, and let our team handle the rest.</p>
-            </div>
-
-            <div class="home-gallery">
-                @foreach (['hero-salon.jpg', 'hero-banner.jpg', 'service-1.jpg', 'service-2.jpg'] as $image)
-                    <figure>
-                        <img src="{{ asset('images/'.$image) }}" alt="Balai ti Arjud lounge" loading="lazy">
-                    </figure>
-                @endforeach
-            </div>
-        </div>
-    </section>
-
-    {{-- ================= BOOKING CTA ================= --}}
-    <section id="booking" class="home-section">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="home-cta">
-                <p class="home-eyebrow">Book Online</p>
-                <h2 class="home-title">Your Beauty Moment Starts Here</h2>
-                <p class="home-sub">
-                    Choose your preferred service, date, and time and leave the rest to us.
-                </p>
-
-                <div class="mt-8">
-                    <a href="{{ route('appointments.create') }}" class="btn-primary btn-lg shadow-card-hover">
-                        Book an Appointment
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <button type="button" class="home-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">
         &#8679;

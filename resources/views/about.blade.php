@@ -5,7 +5,7 @@
 @section('content')
     {{-- Hero banner --}}
     <section class="relative overflow-hidden bg-primary">
-        <img src="{{ asset('images/hero-banner.jpg') }}" alt="Balai ti Arjud interior"
+        <img src="{{ asset('images/10.jpg') }}" alt="Balai ti Arjud interior"
              class="absolute inset-0 h-full w-full object-cover opacity-25">
 
         <div class="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">

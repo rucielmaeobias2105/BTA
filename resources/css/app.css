@@ -273,16 +273,25 @@
         padding: 96px 35px 132px max(45px, calc((100vw - 1600px) / 2));
     }
 
-    /* Soft curved panel behind the hero copy. */
+    /* Soft curved panel behind the hero copy.
+     *
+     * The width is a percentage so the panel always overlaps the photo by the
+     * same amount. A fixed pixel width left a bare strip of page background
+     * between the panel and the photo on wide screens, and swallowed most of
+     * the photo on narrow ones.
+     *
+     * The panel is opaque on purpose: at 0.92 the photo showed through it as a
+     * pale wash. Only the 3px gold right border should read on top of the
+     * image, as a lining along the curve. */
     .home-hero-copy::before {
         content: '';
         @apply pointer-events-none absolute -z-10;
         left: -100px;
         top: -50px;
-        width: 860px;
+        width: calc(100% + 190px);
         height: 1000px;
         border-radius: 0 55% 55% 0;
-        background: rgb(var(--color-soft) / 0.92);
+        background: rgb(var(--color-soft));
         border-right: 3px solid rgb(var(--color-gold-light) / 0.6);
     }
 
@@ -291,24 +300,12 @@
         min-height: 880px;
     }
 
+    /* The photo fills the whole frame. The curve comes from the copy panel's
+     * rounded edge overlapping it, so there is no white lens cut into the
+     * image and no shape painted on top of it. */
     .home-hero-media img {
         @apply block h-full w-full object-cover;
         filter: saturate(0.94);
-    }
-
-    /* Curved mask that blends the photo into the copy panel. */
-    .home-hero-media::before {
-        content: '';
-        @apply pointer-events-none absolute;
-        z-index: 2;
-        left: -80px;
-        top: -10px;
-        width: 170px;
-        height: 900px;
-        background: rgb(var(--color-linen));
-        border-radius: 50%;
-        transform: rotate(-4deg);
-        opacity: 0.92;
     }
 
     .home-hero-media::after {
@@ -579,7 +576,6 @@
             border-radius: 0 0 55% 0;
         }
         .home-hero-media { min-height: 430px; }
-        .home-hero-media::before { display: none; }
         .home-hero-title { font-size: 58px; }
         .home-script { font-size: 42px; }
         .home-section { @apply py-[72px]; }
