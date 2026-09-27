@@ -128,3 +128,43 @@ Do not fabricate scope beyond what's listed — no features outside this spec un
 
 ### Task: Tracking prompts in PROMPT_LOG.md
 * Prompt used: "Prompt Log Format - Create a file named PROMPT_LOG.md in the root directory of your project using this format: ### Task: [e.g., Creating the Education Section] * Prompt used: \"Create a responsive Blade component for my educational history using Tailwind CSS."
+
+### Task: the navbar logo use the C:\xampp\htdocs\BTA\public\images\logo.png
+* Prompt used: "the navbar logo use the C:\\xampp\\htdocs\\BTA\\public\\images\\logo.png"
+* Recorded: 2026-09-27 14:20:05 (session backfill)
+
+### Task: same in the footer logo 
+* Prompt used: "same in the footer logo "
+* Recorded: 2026-09-27 14:22:41 (session backfill)
+
+### Task: then make sure that all my prompts even i clocse or back will record all
+* Prompt used: "then make sure that all my prompts even i clocse or back will record all my prompts"
+* Recorded: 2026-09-27 14:24:20 (session backfill)
+
+### Task: tab name mus tbe
+* Prompt used: "tab name mus tbe \n\nHOME | Balai ti Arjud\nLOG IN | Balai ti Arjud \n\ndo it to all sections/features"
+* Recorded: 2026-09-27 14:29:30 (session backfill)
+
+### Task: home sections only remove the following
+* Prompt used: "home sections only  remove the following \n- About Section \n- Inside the Lounge\nBeautiful moments, captured\n\nStep in, relax, and let our team handle the rest.  (this section) \n- Book Online card)\n\nin the tabs\n- HOME | Balai ti Arjud (showing) instead PROMO | Balai ti Arjud \n- BROWSE SERVICES to SERVICES | Balai ti Arjud"
+* Recorded: 2026-09-27 14:35:10 (session backfill)
+
+### Task: no once i click the promo it directs me to the promo section and the ...
+* Prompt used: "no once i click the promo it directs me to the promo section and the tab name must be \nPROMO | Balai ti Arjud"
+* Recorded: 2026-09-27 14:38:30 (session backfill)
+
+### Task: no it change to the promo section not to remain
+* Prompt used: "no it change to the promo section not to remain"
+* Recorded: 2026-09-27 14:41:30 (session backfill)
+
+### Task: no its not
+* Prompt used: "no its not \n\nthe default public is HOME then is i click the services it goes to services then it must be same on the promo it directcs me to the promo "
+* Recorded: 2026-09-27 14:52:00 (session backfill)
+
+### Task: continue
+* Prompt used: "continue"
+* Recorded: 2026-09-27 14:54:00 (session backfill)
+
+### Task: is all my prompts saved??
+* Prompt used: "is all my prompts saved??"
+* Recorded: 2026-09-27 14:57:00 (session backfill)

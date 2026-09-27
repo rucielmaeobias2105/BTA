@@ -520,6 +520,7 @@ Per the brief, a development-time audit trail lives at the project root.
 
 - **`prompt.log`** — append-only. Every entry is `[YYYY-MM-DD HH:MM:SS] <prompt or summary>`.
   Previous entries are never overwritten.
+- **`PROMPT_LOG.md`** — the same history in a reviewable `### Task:` / `* Prompt used:` format.
 - **`App\Support\PromptLogger`** — `log()`, `module()` and `many()` helpers.
 - **`php artisan prompts:log "…" --module="…"`** — the CLI entry point.
 
@@ -527,6 +528,26 @@ Per the brief, a development-time audit trail lives at the project root.
 php artisan prompts:log "Add a coupon code field to the booking form"
 php artisan prompts:log --module="Customer Flows 5-9" "Built cancel, reschedule and rate"
 ```
+
+### Automatic capture (opencode)
+
+Prompts are captured **automatically** by the plugin at
+`.opencode/plugins/prompt-logger.js`. It hooks opencode's `chat.message` event,
+which fires the instant a prompt is submitted — before the model runs — so every
+prompt is already on disk even if the session is closed, interrupted, or
+navigated away from. Nothing depends on the agent remembering to log.
+
+The plugin writes to both `prompt.log` and `PROMPT_LOG.md`, and:
+
+- de-duplicates retries and permission re-asks via a `messageID` + text hash;
+- preserves multi-line prompts verbatim in the markdown log while keeping
+  `prompt.log` one greppable line per entry;
+- records attached file names alongside the prompt;
+- never throws — all writes are wrapped so logging cannot break a session.
+
+Because prompts are captured automatically, the agent only appends outcome
+entries with `php artisan prompts:log --module="…" "…"`. `AGENTS.md` documents
+this so the two never duplicate each other.
 
 The file is tracked in git so the history is reviewable alongside the code.
 
