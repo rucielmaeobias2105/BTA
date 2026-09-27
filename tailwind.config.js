@@ -3,9 +3,8 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 /**
  * Balai ti Arjud design tokens.
  *
- * Colours are declared as CSS custom properties in resources/css/app.css
- * (ported from the reference implementation in ../BalaiTiArjud). Adjust a
- * token in ONE place (app.css `:root`) and every component follows.
+ * Colours are declared as CSS custom properties in src/assets/app.css. Adjust
+ * a token in ONE place (app.css `:root`) and every component follows.
  */
 const withOpacity = (variable) => ({ opacityValue }) => {
     if (opacityValue === undefined) return `rgb(var(${variable}))`;
@@ -14,12 +13,7 @@ const withOpacity = (variable) => ({ opacityValue }) => {
 };
 
 export default {
-    content: [
-        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
-        './storage/framework/views/*.php',
-        './resources/**/*.blade.php',
-        './resources/**/*.js',
-    ],
+    content: ['./index.html', './src/**/*.{vue,js}'],
     theme: {
         extend: {
             colors: {

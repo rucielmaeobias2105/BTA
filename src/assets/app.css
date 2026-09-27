@@ -8,9 +8,10 @@
  |--------------------------------------------------------------------------
  | Balai ti Arjud design tokens
  |--------------------------------------------------------------------------
- | Single source of truth for the palette. Values ported from the reference
- | implementation in ../BalaiTiArjud (`resources/css/app.css` :root block):
- | a warm rust/brick primary with copper accents and cream neutrals.
+ | Single source of truth for the palette: a warm rust/brick primary with
+ | copper accents and cream neutrals. Every value is exposed to Tailwind as
+ | an `rgb(var(--token) / <alpha-value>)` colour in tailwind.config.js, so a
+ | token changed here is picked up by every utility class in one step.
  */
 @layer base {
     :root {
@@ -254,9 +255,6 @@
 
     /* ---------------------------------------------------------------------
      | Home page
-     | Layout ported from the reference implementation in
-     | ../BalaiTiArjud (layouts/home.blade.php + home.blade.php), re-expressed
-     | with the design tokens above instead of that project's literal hexes.
      |------------------------------------------------------------------*/
 
     /* Hero ------------------------------------------------------------- */
@@ -458,7 +456,7 @@
     }
 
     .home-promo-flourish {
-        @select-none text-6xl text-gold;
+        @apply select-none text-6xl text-gold;
         opacity: 0.35;
     }
 
@@ -609,9 +607,8 @@
 
     /* ---------------------------------------------------------------------
      | Auth pages
-     | Split-screen sign-in / register ported from the reference
-     | implementation in ../BalaiTiArjud: a photo panel carrying the brand
-     | voice on the left, a tabbed form on the right.
+     | Split-screen sign-in / register: a photo panel carrying the brand
+     | voice on the left, a form on the right.
      |------------------------------------------------------------------*/
     .auth-page {
         @apply grid w-full lg:grid-cols-2;
