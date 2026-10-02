@@ -105,6 +105,36 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Admin
+        |----------------------------------------------------------------------
+        |
+        | The staff portal signs in on its own guard with its own provider, so it
+        | needs its own broker. Without this entry the reset flow would run against
+        | the `users` provider above: every admin address would come back as an
+        | unknown account, and the page would report "we sent you a link" while
+        | sending nothing — which is the failure this flow had.
+        |
+        | `admins` matches `App\Models\Admin::PASSWORD_BROKER`, which is what the
+        | model passes to `Password::broker()` when it mails the link, so the
+        | broker that sends and the broker that verifies are the same by
+        | construction rather than by two strings happening to match.
+        |
+        | Same token table as customers, and deliberately so: one table to expire,
+        | one to clear, and a token is useless without the address it was issued
+        | for. `expire` is shorter than the customers' 60 — an admin password
+        | protects the whole panel, so the window is 30 minutes.
+        |
+        */
+
+        'admins' => [
+            'provider' => 'admins',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 30,
+            'throttle' => 60,
+        ],
     ],
 
     /*

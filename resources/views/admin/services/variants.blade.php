@@ -38,10 +38,11 @@
                                                maxlength="100" class="input" required>
                                     </div>
 
-                                    <div class="w-32">
+                                    {{-- Text, so "249/499" and "100+" survive. --}}
+                                    <div class="w-40">
                                         <label class="label" for="variant-price-{{ $variant->id }}">Price (₱)</label>
-                                        <input id="variant-price-{{ $variant->id }}" name="price" type="number" step="0.01" min="0"
-                                               value="{{ (float) $variant->price }}" class="input" required>
+                                        <input id="variant-price-{{ $variant->id }}" name="price" type="text" inputmode="text"
+                                               maxlength="50" value="{{ $variant->price }}" class="input" required>
                                     </div>
 
                                     <div class="w-32">
@@ -77,7 +78,8 @@
                     @csrf
 
                     <x-ui.form.input name="name" label="Variant Name" required placeholder="Long Hair" />
-                    <x-ui.form.input name="price" type="number" step="0.01" min="0" label="Price (₱)" required prefix="₱" />
+                    <x-ui.form.input name="price" type="text" inputmode="text" label="Price (₱)" required prefix="₱"
+                                     hint='100+ for "starting at", or 249/499 for two options.' />
                     <x-ui.form.input name="duration_minutes" type="number" min="5" max="1440" label="Duration (minutes)" hint="Leave blank to inherit the service duration." />
                     <x-ui.form.checkbox name="is_default" value="1" label="Make this the default variant" />
 

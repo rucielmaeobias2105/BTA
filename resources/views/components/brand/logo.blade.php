@@ -10,9 +10,9 @@
 
 @php
     $sizes = [
-        'sm' => ['mark' => 'h-9 w-9 text-[8px]', 'name' => 'text-base', 'tag' => 'text-[9px]'],
-        'md' => ['mark' => 'h-12 w-12 text-[9px]', 'name' => 'text-xl', 'tag' => 'text-[10px]'],
-        'lg' => ['mark' => 'h-16 w-16 text-[11px]', 'name' => 'text-2xl', 'tag' => 'text-xs'],
+        'sm' => ['name' => 'text-base', 'tag' => 'text-[9px]'],
+        'md' => ['name' => 'text-xl', 'tag' => 'text-[10px]'],
+        'lg' => ['name' => 'text-2xl', 'tag' => 'text-xs'],
     ];
 
     $s = $sizes[$size] ?? $sizes['md'];
@@ -24,23 +24,10 @@
     <span {{ $attributes->merge(['class' => 'inline-flex items-center gap-3']) }}>
 @endif
     {{-- Circular emblem badge: gold ring, maroon face, serif wordmark. Falls
-         back to the "BtA" monogram when no image is supplied. --}}
-    @if ($image)
-        <img
-            src="{{ asset($image) }}"
-            alt="{{ $nameLabel }}"
-            class="{{ $s['mark'] }} shrink-0 rounded-full object-cover ring-2 ring-gold ring-offset-2 ring-offset-cream shadow-card"
-        >
-    @else
-        <span
-            class="relative flex {{ $s['mark'] }} shrink-0 items-center justify-center rounded-full
-                   bg-primary text-cream ring-2 ring-gold ring-offset-2 ring-offset-cream
-                   shadow-card transition group-hover:ring-gold-light"
-        >
-            <span class="font-display font-semibold leading-none tracking-tight">Bt<span class="text-gold">A</span></span>
-            <span class="absolute inset-[3px] rounded-full border border-gold/40"></span>
-        </span>
-    @endif
+         back to the "BtA" monogram when no image is supplied. The emblem
+         itself lives in x-brand.emblem so other surfaces can reuse the mark
+         at their own size instead of rebuilding it. --}}
+    <x-brand.emblem :image="$image" :name-label="$nameLabel" :size="$size" />
 
     @if ($showWordmark)
         <span class="min-w-0 leading-tight">

@@ -10,56 +10,41 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminSeeder extends Seeder
 {
+    /**
+     * The single staff login for the salon.
+     *
+     * There is one admin and no tiers: `username` is what the login form asks
+     * for, and `admin` doubles as the only "Preferred Stylist" the booking form
+     * can offer.
+     */
+    private const ADMIN = [
+        'first_name' => 'Maia',
+        'last_name' => 'Arjud',
+        'username' => 'admin',
+        'email' => 'admin@balaitiarjud.test',
+    ];
+
     public function run(): void
     {
-        $admins = [
-            [
-                'first_name' => 'Maia',
-                'last_name' => 'Arjud',
-                'username' => 'admin',
-                'email' => 'admin@balaitiarjud.test',
-                'role' => AdminRole::SuperAdmin,
+        Admin::updateOrCreate(
+            ['username' => self::ADMIN['username']],
+            self::ADMIN + [
+                'role' => AdminRole::Admin,
+                'password' => Hash::make('password'),
+                'is_active' => true,
             ],
-            [
-                'first_name' => 'Rina',
-                'last_name' => 'Bautista',
-                'username' => 'manager',
-                'email' => 'manager@balaitiarjud.test',
-                'role' => AdminRole::Manager,
-            ],
-            // Therapists double as the "Preferred Stylist" list on the booking form.
-            [
-                'first_name' => 'Jade',
-                'last_name' => 'Panganiban',
-                'username' => 'jade',
-                'email' => 'jade@balaitiarjud.test',
-                'role' => AdminRole::Staff,
-            ],
-            [
-                'first_name' => 'Marco',
-                'last_name' => 'Soriano',
-                'username' => 'marco',
-                'email' => 'marco@balaitiarjud.test',
-                'role' => AdminRole::Staff,
-            ],
-            [
-                'first_name' => 'Aling',
-                'last_name' => 'Reyes',
-                'username' => 'aling',
-                'email' => 'aling@balaitiarjud.test',
-                'role' => AdminRole::Staff,
-            ],
-        ];
+        );
 
-        foreach ($admins as $admin) {
-            Admin::updateOrCreate(
-                ['email' => $admin['email']],
-                $admin + [
-                    'password' => Hash::make('password'),
-                    'is_active' => true,
-                ],
-            );
-        }
+        // The manager/staff accounts this seeder used to create are gone, so a
+        // re-seed on an existing database would otherwise leave them behind
+        // and quietly re-introduce the tiers. `forceDelete` rather than
+        // `delete` so they are actually removed: a soft-deleted admin still
+        // occupies its username and email, and still shows up in a role audit.
+        // Their `created_by` and `preferred_stylist_id` references are
+        // `nullOnDelete`, so removing the rows is safe.
+        Admin::query()
+            ->where('username', '!=', self::ADMIN['username'])
+            ->forceDelete();
 
         SalonSetting::updateOrCreate(
             ['id' => 1],
@@ -71,7 +56,9 @@ class AdminSeeder extends Seeder
                 'operating_hours' => SalonSetting::defaultHours(),
                 'slot_interval_minutes' => 30,
                 'booking_lead_days' => 60,
-                'down_payment_required' => true,
+                // No deposit for a web booking; the form does not ask for a
+                // reference. Matches `SalonSetting::current()`'s default.
+                'down_payment_required' => false,
                 'down_payment_percentage' => 50,
             ],
         );

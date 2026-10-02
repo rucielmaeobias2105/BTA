@@ -26,7 +26,7 @@ class LoginTest extends TestCase
         $this->post('/login', [
             'login' => 'juan@example.test',
             'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('home'));
 
         $this->assertAuthenticatedAs($user);
     }
@@ -38,7 +38,7 @@ class LoginTest extends TestCase
         $this->post('/login', [
             'login' => 'juan',
             'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('home'));
 
         $this->assertAuthenticatedAs($user);
     }
@@ -133,7 +133,7 @@ class LoginTest extends TestCase
 
     public function test_guests_are_redirected_away_from_protected_pages(): void
     {
-        $this->get('/dashboard')->assertRedirect(route('login'));
+        $this->get('/appointments')->assertRedirect(route('login'));
         $this->get('/appointments')->assertRedirect(route('login'));
         $this->get('/profile')->assertRedirect(route('login'));
     }
@@ -142,7 +142,7 @@ class LoginTest extends TestCase
     {
         $this->actingAs($this->makeUser())
             ->get('/login')
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('home'));
     }
 
     /**

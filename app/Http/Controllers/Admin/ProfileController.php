@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\AdminRole;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +15,6 @@ class ProfileController extends Controller
     {
         return view('admin.profile.edit', [
             'admin' => $request->user('admin'),
-            'roleOptions' => AdminRole::options(),
         ]);
     }
 
@@ -35,11 +33,16 @@ class ProfileController extends Controller
                 'required', 'string', 'max:64', 'alpha_dash',
                 Rule::unique('admins', 'username')->ignore($admin->id)->whereNull('deleted_at'),
             ],
-            'role' => ['required', Rule::in(AdminRole::values())],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $payload = $request->safe()->only(['first_name', 'last_name', 'email', 'username', 'role']);
+        // `role` is not part of the payload: there is one admin role, so the
+        // column is left exactly as it is.
+        //
+        // `password` is dropped rather than written straight from the validated
+        // data, because what comes back there is the plain confirmation match, not
+        // a hash. Only the branch below that hashes it may set it.
+        $payload = collect($data)->except('password')->all();
 
         if ($request->filled('password')) {
             $payload['password'] = Hash::make($request->string('password')->toString());

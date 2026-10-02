@@ -43,9 +43,7 @@ class PasswordResetLinkController extends Controller
         $email = strtolower(trim($data['email']));
         $user = User::where('email', $email)->first();
 
-        if ($user) {
-            $this->service->issue($user, $request->ip());
-        }
+        $issued = $user ? $this->service->issue($user, $request->ip()) : null;
 
         // Always advance, so the form cannot be used to discover which
         // email addresses are registered.
@@ -54,10 +52,44 @@ class PasswordResetLinkController extends Controller
             'token' => PasswordResetService::newSessionToken(),
         ]);
 
-        return redirect()->route('password.code')
-            ->with('status', $user
-                ? 'We sent a 6-digit verification code to '.$email.'.'
-                : 'If that email is registered, a 6-digit verification code is on its way.');
+        /*
+         * One message for both cases, deliberately.
+         *
+         * These two used to differ — a registered address was told "we sent a
+         * 6-digit code", an unknown one "if that email is registered…". That is
+         * the whole enumeration oracle the redirect above exists to close, so
+         * the wording is now identical whether or not an account matched.
+         */
+        $redirect = redirect()->route('password.code');
+
+        /*
+         * …with one exception, and it is not about the account.
+         *
+         * A rejected SMTP credential used to produce the same cheerful "it's on
+         * its way" as a real send, because `issue()` reported nothing back. The
+         * code was written to the database and the mail never left the server, so
+         * the page advanced to a code box and waited for a message that could not
+         * arrive — which reads to the person as "check your spam", sends them off
+         * to wait fifteen minutes for a code that was never sent, and hides a dead
+         * mail configuration behind a plausible story. That is the exact report
+         * this branch exists for.
+         *
+         * Note the cost honestly: this warning fires only for an address that
+         * matched, so while SMTP is broken it does reveal that an address is
+         * registered. It cannot be avoided without attempting a real send to every
+         * typed address, which would email strangers who used a reset form. The
+         * trade is worth it because the alternative is a silent failure that
+         * presents as working software, and the window is only open while the mail
+         * server is already down for everyone.
+         */
+        if ($issued !== null && ! $issued->delivered) {
+            return $redirect->with('toast', [
+                'type' => 'warning',
+                'message' => 'We could not send the verification email. Please try again in a moment.',
+            ]);
+        }
+
+        return $redirect->with('status', 'If that email is registered, a 6-digit verification code is on its way.');
     }
 
     /* ------------------------------------------------------------------ */
@@ -127,7 +159,7 @@ class PasswordResetLinkController extends Controller
         Auth::login(User::where('email', $email)->first());
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard')
+        return redirect()->route('home')
             ->with('status', 'Your password has been reset successfully.');
     }
 

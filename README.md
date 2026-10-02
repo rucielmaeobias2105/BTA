@@ -144,6 +144,7 @@ working on port 8000 while Apache serves the same app.
 | --- | --- |
 | `dev-up.bat` | Starts a hidden supervisor, waits until the site really answers, then opens your browser. Closing the window does **not** stop the site. |
 | `dev-down.bat` | Gracefully stops the supervisor and the port-8000 server. Apache and MySQL are left alone. |
+| `start-dev.bat` | Foreground alternative: migrates, seeds, builds assets, then serves in this window. Also opens the browser itself once the site answers. Ctrl+C stops it. |
 
 The supervisor (`tools/dev-supervisor.ps1`) checks the app every few seconds and
 restarts `php artisan serve` if it dies or stops answering, and it restarts MySQL
@@ -157,11 +158,28 @@ terminal.
 - Admin panel: <http://localhost:8000/admin/login>
 - Supervisor log: `storage/logs/dev-supervisor.log`
 - Dev server log: `storage/logs/serve.log`
+- Startup wait log: `storage/logs/wait-for-site.log`
 
 > Cold start is slow on this machine: the dev server needs roughly 45s to accept
 > its first connection and the first request can take another ~2 minutes while
 > Laravel compiles config and views. `dev-up.bat` waits for the site to genuinely
 > answer before opening the browser, so it will not drop you on an error page.
+
+#### Why you used to see "Firefox can't connect to the server at 127.0.0.1:8000"
+
+The launcher used to decide the site was up by looking for the marker file
+`storage/dev-server.ready`. That marker survives a crash, a force-kill or a
+reboot, so after any unclean shutdown the next run saw a leftover marker, skipped
+the wait entirely, and opened the browser onto a port with nothing listening on it.
+
+Both launchers now ask the site itself instead, via `tools/wait-for-site.ps1`,
+which polls `http://127.0.0.1:8000/` until it gets a real HTTP response. The
+marker file is cleared on every launch and is only rewritten after a successful
+check, so it can no longer lie. `dev-up.bat` also refuses to open the browser at
+all if the site never comes up, and prints which log to read instead.
+
+If the site is still down, it is almost always MySQL: check the XAMPP control
+panel, then `storage/logs/wait-for-site.log`.
 
 Customer and admin sessions are **completely isolated** — they use separate guards
 (`web`/`users` and `admin`/`admins`), separate tables and separate session state. Being
@@ -446,7 +464,7 @@ the CSS custom properties in `resources/css/app.css`.
 | `service_variants` | Short/long-hair style pricing, unique per service |
 | `inventory_items` | Quantity + unit + reorder threshold, `status_tag` enum, soft deletes |
 | `service_inventory` | Many-to-many pivot with `quantity_per_service` |
-| `blocked_dates` | Date or range, scoped to one service or all, optional internal reason |
+| `blocked_dates` | A single day, scoped to one service or all, optional time and internal reason |
 | `appointments` | Reference number, snapshotted total, down-payment fields, `admin_notes` (internal), soft deletes |
 | `appointment_service` | Per-appointment service lines with price/duration snapshots |
 | `appointment_status_history` | Every transition with `from`/`to`, actor type, actor id and name |

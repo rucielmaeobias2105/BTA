@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\AppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
-use App\Models\InventoryItem;
-use App\Models\Review;
 use App\Services\ReportService;
 use Illuminate\View\View;
 
@@ -16,36 +13,22 @@ class DashboardController extends Controller
 
     /**
      * Admin Flow 2 — Admin Dashboard.
-     * Read-only metrics: today's appointments, low-stock alerts, revenue chart,
-     * upcoming appointments and quick stat cards.
+     *
+     * Read-only metrics: the quick stat cards from the report summary and
+     * today's schedule. The revenue chart, the appointment status breakdown,
+     * the low-stock list, the upcoming list and the recent activity used to be
+     * queried here as well, but their cards were removed from the panel — this
+     * deliberately stops fetching data no view renders.
      */
     public function __invoke(): View
     {
-        $summary = $this->reports->summary();
-
         return view('admin.dashboard', [
-            'summary' => $summary,
-            'chart' => $this->reports->revenueChart(14),
-            'statusBreakdown' => $this->reports->statusBreakdown(),
+            'summary' => $this->reports->summary(),
             'todayAppointments' => Appointment::query()
                 ->with(['serviceLines', 'user'])
                 ->whereDate('preferred_date', today())
                 ->orderBy('preferred_time')
                 ->get(),
-            'upcoming' => Appointment::query()
-                ->with('serviceLines')
-                ->upcoming()
-                ->orderBy('preferred_date')
-                ->orderBy('preferred_time')
-                ->take(6)
-                ->get(),
-            'lowStockItems' => InventoryItem::query()
-                ->lowStock()
-                ->orderBy('quantity')
-                ->take(6)
-                ->get(),
-            'recentReviews' => Review::query()->with('service')->latest()->take(4)->get(),
-            'averageRating' => round((float) Review::query()->avg('rating'), 1),
         ]);
     }
 }

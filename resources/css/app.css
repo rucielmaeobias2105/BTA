@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Parisienne&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700&display=swap');
 
+/*
+ |--------------------------------------------------------------------------
+ | Font Awesome
+ |--------------------------------------------------------------------------
+ | Free build, imported from node_modules so the webfonts are hashed and
+ | served from our own origin rather than a third-party CDN.
+ |
+ | FA6+ syntax only: a family prefix (`fas`, `far`, `fab`) plus the icon name,
+ | e.g. `fas fa-sign-in-alt`. The FA4-era `fa fa-…` form is not used, so the
+ | `v4-shims` stylesheet is deliberately not imported — it is only needed to
+ | re-point those legacy aliases.
+ */
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -56,6 +70,18 @@
         /* Low Stock tan/orange warning */
         --color-status-low-stock: 176 92 20;
         --color-status-low-stock-bg: 253 238 219;
+
+        /* The one cool accent in an otherwise warm palette.
+         *
+         * Added for the appointments table's Reschedule action, which the
+         * reference history table marks blue and which reads as "change the date"
+         * at a glance where maroon would only read as "primary action". It is a
+         * real token rather than a hex pasted into a class so a future screen can
+         * reach for it without importing a second palette, and it is deliberately
+         * the *only* cool colour here — the badges and status bars stay warm, so
+         * blue keeps meaning one thing. */
+        --color-info: 21 101 192;
+        --color-info-bg: 227 242 253;
         /* Best Seller copper */
         --color-status-best-seller: 143 82 51;
         --color-status-best-seller-bg: 250 232 218;
@@ -89,6 +115,50 @@
         cursor: pointer;
     }
 }
+
+@layer base {
+    /*
+     | Alpine's `x-cloak` has no styling of its own, so anything carrying the
+     | attribute stayed visible until Alpine booted and then snapped away — a
+     | flash of every `x-show` element (the low-stock suggestion, the bulk
+     | action bar, the calendar's block dialog). Alpine strips the attribute
+     | from its own elements during initialisation, which is the moment the
+     | rule stops applying.
+     */
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /*
+     |----------------------------------------------------------------------
+     | Modal backdrop
+     |----------------------------------------------------------------------
+     | One class so every dialog on a page dims the same way.
+     |
+     | It used to be `bg-primary/40 backdrop-blur-sm` written inline in each
+     | dialog, which put a maroon cast over the page behind the dialog — a warm
+     | cream page went muddy, and the dialog looked like it was floating on red
+     | rather than on the salon. This is a neutral warm cream scrim instead, so
+     | the page still reads as cream and only recedes.
+     |
+     | `blur-sm` is too strong at this opacity for a page of tables and form
+     | controls; 4px softens the edges without turning the content behind into
+     | an unreadable smear.
+     */
+    .modal-backdrop {
+        background-color: rgba(245, 240, 235, 0.6);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* The dialog box itself, shared by every confirmation. */
+    .modal-panel {
+        @apply relative w-full max-w-lg rounded-2xl border border-line/70 bg-cream shadow-2xl;
+    }
+}
+
 
 @layer components {
     /* ---------------------------------------------------------------------
@@ -136,6 +206,13 @@
     .btn-danger {
         @apply btn border border-status-cancelled/60 bg-transparent text-status-cancelled
                hover:bg-status-cancelled hover:text-cream;
+    }
+
+    /* Solid, for the one action that is blue — Reschedule's confirm. The ghost
+     * button beside it stays neutral so the pair reads as "dismiss / commit"
+     * rather than two competing primaries. */
+    .btn-info {
+        @apply btn border border-info bg-info text-cream hover:bg-info/90 hover:border-info/90;
     }
 
     .btn-sm {
@@ -197,8 +274,108 @@
     }
 
     .checkbox {
-        @apply h-4 w-4 shrink-0 rounded border-primary/30 text-primary
+        /* `accent-*` is what actually paints a native checkbox's checked state.
+         * `text-primary` only sets `color`, which tints the check glyph but
+         * leaves the box unfilled — so a ticked box read as empty. Keeping both
+         * gives a filled maroon box with a white check plus the focus ring. */
+        @apply h-4 w-4 shrink-0 rounded border-primary/30 text-primary accent-primary
                focus:ring-2 focus:ring-gold/50 focus:ring-offset-0;
+    }
+
+    /* The admin list's per-row status dropdown.
+     *
+     * Inherits `.input`'s border, gold focus ring and cream-on-white surface
+     * — the same treatment as the entries-per-page select — then tightens to a
+     * row-height pill. The native arrow is kept, hence the right padding,
+     * rather than swapped for a custom one, so it matches every other select
+     * in the panel.
+     *
+     * The left border and the text carry the status colour, because the badge
+     * this control replaced was the same information in colour and the row
+     * should still scan at a glance.
+     */
+    .status-select {
+        @apply block w-full min-w-44 cursor-pointer rounded-pill border bg-white/70 py-1.5 pl-4
+               pr-8 text-xs font-semibold transition
+               focus:border-gold focus:bg-white focus:outline-none focus:ring-2 focus:ring-gold/40
+               disabled:cursor-not-allowed disabled:opacity-60;
+    }
+
+    .status-select-pending { @apply border-status-pending/40 text-status-pending; }
+    .status-select-confirmed { @apply border-status-confirmed/40 text-status-confirmed; }
+    .status-select-in_progress { @apply border-status-progress/40 text-status-progress; }
+    .status-select-completed { @apply border-status-completed/40 text-status-completed; }
+    .status-select-cancelled { @apply border-status-cancelled/40 text-status-cancelled; }
+
+    /*
+     * A status with no way out of it — currently only `completed`, see
+     * AppointmentStatus::isLocked() — renders the same control with the
+     * status's own colour drained out of it.
+     *
+     * The `disabled:` utilities on `.status-select` above already stop the
+     * interaction and fade the opacity; this adds the "finished" reading on top
+     * by taking the text and border to a muted grey. Keeping the selector in
+     * the markup rather than branching the base class is what lets one control
+     * serve both cases, so a new terminal status gets the treatment by being
+     * named in the template and not by a second stylesheet rule here.
+     */
+    .status-select-locked {
+        @apply border-line text-ink-muted opacity-60;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Terms & Conditions
+     |------------------------------------------------------------------*/
+    /*
+     * The numbered list `App\Support\TermsRenderer` builds from whatever the
+     * admin published, in both the modal and the standalone page.
+     *
+     * The counter is the reason the renderer strips hand-written "1." from each
+     * heading: the number is structural here rather than being typed into the
+     * copy, so an admin who never numbers their sections still gets a numbered
+     * list, and one who does gets exactly one set of numbers instead of "1. 1.
+     * Confirmation".
+     */
+    .terms-list {
+        @apply mb-4 list-decimal space-y-4 pl-5 text-sm leading-relaxed text-ink;
+    }
+
+    .terms-list__item {
+        @apply pl-1;
+    }
+
+    /*
+     * The marker sits outside the item's text block, so a heading that wraps
+     * does not push its own number away from the first line.
+     */
+    .terms-list__title {
+        @apply mb-1 font-display text-sm font-semibold text-primary;
+    }
+
+    .terms-list p {
+        @apply mb-2 last:mb-0;
+    }
+
+    .terms-list ul {
+        @apply mb-2 list-disc pl-5;
+    }
+
+    .terms-list strong {
+        @apply font-semibold text-primary;
+    }
+
+    /* The document's own title and standfirst, from the published content. */
+    .terms-list__intro h2 {
+        @apply mb-2 font-display text-xl font-semibold text-primary;
+    }
+
+    .terms-list__intro {
+        @apply mb-5 text-sm leading-relaxed text-ink;
+    }
+
+    /* The note an admin writes below the editor's Divider button. */
+    .terms-list__after {
+        @apply mt-5 border-t border-line pt-3 text-xs text-ink-muted;
     }
 
     /* ---------------------------------------------------------------------
@@ -219,6 +396,98 @@
 
     .bta-table tbody tr:hover {
         @apply bg-linen/50;
+    }
+
+    /* The dark header band, for the customer-side history tables.
+     *
+     * A modifier rather than a second table class so the row padding, the hover
+     * and the uppercase header treatment are inherited from `.bta-table` and only
+     * the colours are restated. `bg-primary` + `text-cream` is the same pairing
+     * the appointment detail page already uses for its own dark band, so the two
+     * read as one system rather than a second palette imported from elsewhere. */
+    .bta-table-dark thead th {
+        @apply border-primary/20 bg-primary text-cream;
+    }
+
+    /* Icon-only row actions: edit, delete, announce. The label lives in the
+     | `title`/`aria-label` so the button can stay square. */
+    .icon-action {
+        @apply inline-flex h-8 w-8 items-center justify-center rounded-lg border
+               bg-transparent transition duration-200;
+    }
+
+    .icon-action-primary {
+        @apply border-primary/25 bg-primary/5 text-primary hover:bg-primary hover:text-cream;
+    }
+
+    .icon-action-secondary {
+        @apply border-primary/20 text-ink-muted hover:border-primary/60 hover:text-primary;
+    }
+
+    .icon-action-danger {
+        @apply border-status-cancelled/30 text-status-cancelled hover:bg-status-cancelled hover:text-cream;
+    }
+
+    .icon-action-ghost {
+        @apply border-transparent hover:bg-primary/5 hover:text-primary;
+    }
+
+    /* The cool accent: Reschedule only. See the `--color-info` note at the top of
+     * this file for why one action is blue and the rest are warm. */
+    .icon-action-info {
+        @apply border-info/30 text-info hover:bg-info hover:text-cream;
+    }
+
+    /* Pager for the admin tables. A three-wide window of page numbers between
+     * a previous and a next button, which is the shape the reference admin
+     * produces — it reuses Bootstrap's `ul.pagination` markup and swaps the
+     * contents on every draw, so the numbers are its own, not a page-number
+     * dropdown. */
+    .table-page-btn {
+        @apply inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-primary/15
+               px-2 text-sm font-medium text-ink-muted transition hover:border-primary/50
+               hover:text-primary disabled:pointer-events-none disabled:opacity-40;
+    }
+
+    .table-page-btn-current {
+        @apply border-primary bg-primary text-cream hover:border-primary hover:text-cream;
+    }
+
+    /* A row inside a popover menu, e.g. the audience list behind a promo's
+     * announce button. A real <button> so it submits the form it sits in. */
+    .menu-item {
+        @apply block w-full cursor-pointer rounded-lg px-2 py-1.5 text-left text-sm text-ink
+               transition hover:bg-linen hover:text-primary;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Switch
+     | One track, two callers: a form (`<input class="switch-input">` followed
+     | by the track) and a table row (the track is the PATCH submit button).
+     | The knob is a pseudo-element so neither caller has to ship a child.
+     |------------------------------------------------------------------*/
+    .switch {
+        @apply relative inline-flex h-6 w-12 shrink-0 cursor-pointer items-center
+               rounded-full border border-primary/20 bg-linen p-0.5 transition-colors duration-200;
+    }
+
+    .switch::after {
+        content: '';
+        @apply block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200;
+    }
+
+    .switch-on,
+    .switch-input:checked + .switch {
+        @apply border-transparent bg-status-confirmed;
+    }
+
+    .switch-on::after,
+    .switch-input:checked + .switch::after {
+        transform: translateX(1.5rem);
+    }
+
+    .switch-input:focus-visible + .switch {
+        @apply ring-2 ring-gold ring-offset-2 ring-offset-cream;
     }
 
     /* ---------------------------------------------------------------------
@@ -243,13 +512,41 @@
         @apply bg-blush font-semibold text-primary;
     }
 
+    /* The icon + label pair lives on one flex row, so every link in the run
+     * aligns its glyph the same way. This used to be spelled out as utilities on
+     * whichever link happened to have an icon, which meant the rest of the nav
+     * silently relied on the label sitting flush against the anchor edge. */
     .customer-nav-link {
-        @apply relative px-1 py-2 text-sm font-medium text-ink-muted transition hover:text-primary;
+        @apply relative inline-flex items-center gap-2 px-1 py-2 text-sm font-medium
+               text-ink-muted transition hover:text-primary;
     }
 
     .customer-nav-link-active {
         @apply text-primary after:absolute after:inset-x-0 after:-bottom-0.5 after:mx-auto
                after:h-0.5 after:w-8 after:rounded-full after:bg-primary;
+    }
+
+    /* Fixed glyph size, so an icon never inherits its label's size and the
+     * nav's optical rhythm holds no matter which link it sits in. */
+    .customer-nav-icon {
+        @apply text-[13px] leading-none;
+    }
+
+    /* The nav list and the bell/profile group share one wrapper. As two of
+     * three children of a `justify-between` row they were separated by the
+     * container's leftover free space, so the last link ("My Appointments")
+     * drifted away from the bell it is paired with — anywhere from ~40px to
+     * ~100px depending on viewport. Inside this wrapper the gap is a fixed
+     * `gap-5`, so the two always read as a single run. */
+    .customer-nav-cluster {
+        @apply flex items-center gap-5;
+    }
+
+    /* Mobile rows share one class, so the icon + label pair lines up the same
+     * way in the hamburger menu as it does in the desktop nav. */
+    .customer-nav-mobile-link {
+        @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium
+               text-ink hover:bg-linen;
     }
 
     /* ---------------------------------------------------------------------
@@ -260,17 +557,25 @@
      |------------------------------------------------------------------*/
 
     /* Hero ------------------------------------------------------------- */
+    /* Height is content-driven. The old `min-height: 880px` was paired with a
+     * vertically centred copy block; once the block was top-aligned the fixed
+     * floor no longer matched the content and left a tall strip of empty panel
+     * between the feature row and the footer. The grid row now sizes to the
+     * copy, and the photo stretches to whatever that turns out to be. */
     .home-hero {
         @apply relative z-10 grid overflow-hidden lg:grid-cols-[43fr_57fr];
-        min-height: 880px;
         background:
             radial-gradient(circle at 10% 18%, rgb(255 255 255 / 0.75), transparent 28%),
             linear-gradient(180deg, rgb(255 250 243) 0%, rgb(var(--color-linen)) 100%);
     }
 
+    /* Top-aligned, not centred. `justify-center` used to float the whole block
+     * to the vertical middle of the 880px hero, which left a large void under
+     * the sticky nav. `justify-start` plus a small top padding puts the
+     * "WELCOME TO" kicker just below the 80px nav instead. */
     .home-hero-copy {
-        @apply relative z-20 flex flex-col justify-center;
-        padding: 96px 35px 132px max(45px, calc((100vw - 1600px) / 2));
+        @apply relative z-20 flex flex-col justify-start;
+        padding: 32px 35px 72px max(45px, calc((100vw - 1600px) / 2));
     }
 
     /* Soft curved panel behind the hero copy.
@@ -281,23 +586,68 @@
      * the photo on narrow ones.
      *
      * The panel is opaque on purpose: at 0.92 the photo showed through it as a
-     * pale wash. Only the 3px gold right border should read on top of the
-     * image, as a lining along the curve. */
+     * pale wash. Only the gold lining should read on top of the image, as a
+     * stroke following the curve.
+     *
+     * The edge is a masked SVG wave rather than a border-radius arc, so the
+     * silhouette undulates in and out along its height instead of sweeping
+     * once at a uniform radius. The mask carries the shape only, which keeps
+     * the fill on `background` and therefore on the design token. */
     .home-hero-copy::before {
         content: '';
         @apply pointer-events-none absolute -z-10;
         left: -100px;
         top: -50px;
         width: calc(100% + 190px);
-        height: 1000px;
-        border-radius: 0 55% 55% 0;
+        height: calc(100% + 50px);
         background: rgb(var(--color-soft));
-        border-right: 3px solid rgb(var(--color-gold-light) / 0.6);
+        -webkit-mask-image: var(--home-wave-right);
+        mask-image: var(--home-wave-right);
+        -webkit-mask-size: 100% 100%;
+        mask-size: 100% 100%;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
     }
 
+    /* The wave geometry. Declared once as custom properties so the panel mask
+     * and the gold lining below stay in lockstep, and so the 900px breakpoint
+     * can swap both to the bottom-right variant from one place.
+     *
+     * `preserveAspectRatio="none"` lets the single path stretch to whatever
+     * box the panel resolves to, so the wave scales with the column width and
+     * keeps its proportion instead of letterboxing. */
+    .home-hero {
+        --home-wave-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 1000' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' d='M0,0 H90 C76,150 98,300 87,420 C76,540 97,700 88,820 C84,898 90,958 90,1000 H0 Z'/%3E%3C/svg%3E");
+        --home-wave-bottom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' d='M0,0 H1000 V424 C884,470 764,528 640,558 C516,588 300,600 0,600 Z'/%3E%3C/svg%3E");
+    }
+
+    /* Gold lining along the wave. A stroked copy of the same geometry, drawn
+     * with `non-scaling-stroke` so the 1.5px stays 1.5px however far the
+     * preserveAspectRatio="none" stretch distorts the curve. */
+    .home-hero-edge {
+        @apply pointer-events-none absolute;
+        z-index: -9;
+        left: -100px;
+        top: -50px;
+        width: calc(100% + 190px);
+        height: calc(100% + 50px);
+        overflow: visible;
+    }
+
+    .home-hero-edge path {
+        fill: none;
+        stroke: rgb(var(--color-gold-light) / 0.6);
+        stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+    }
+
+    /* The photo is a grid item, so it stretches to the row height the copy
+     * column establishes. No min-height here: it used to be pinned to the same
+     * 880px as the hero, which is what kept the two columns tall after the copy
+     * block was shortened. */
     .home-hero-media {
         @apply relative overflow-hidden;
-        min-height: 880px;
+        align-self: stretch;
     }
 
     /* The photo fills the whole frame. The curve comes from the copy panel's
@@ -316,28 +666,33 @@
         background: linear-gradient(to top, rgb(var(--color-linen) / 0.75), transparent);
     }
 
-    .home-floral {
-        @apply pointer-events-none absolute select-none text-gold-light;
-        opacity: 0.43;
-        font-size: 105px;
-        line-height: 1;
+    /* Corner botanical accent. Line art only: thin strokes, no fill, in the
+     * soft tan that sits just above the panel background so it reads as a
+     * background flourish rather than an icon. */
+    .home-botanical {
+        @apply pointer-events-none absolute select-none;
+        z-index: -8;
+        color: rgb(var(--color-gold-light));
+        opacity: 0.5;
     }
 
-    .home-floral-top {
-        left: -10px;
-        top: 5px;
-        transform: rotate(-20deg);
+    .home-botanical-top {
+        left: -34px;
+        top: -22px;
+        width: 300px;
+        height: 300px;
     }
 
-    .home-floral-bottom {
-        left: -30px;
-        bottom: 80px;
-        font-size: 90px;
-        transform: rotate(15deg);
+    .home-botanical-bottom {
+        left: -26px;
+        bottom: 44px;
+        width: 190px;
+        height: 190px;
+        opacity: 0.34;
     }
 
     .home-kicker {
-        @apply mb-5 text-lg font-semibold text-gold-mid;
+        @apply mb-4 text-lg font-semibold text-gold-mid;
         letter-spacing: 5px;
     }
 
@@ -351,7 +706,7 @@
     }
 
     .home-description {
-        @apply my-8 max-w-[610px] leading-[1.45] text-sienna;
+        @apply my-7 max-w-[610px] leading-[1.45] text-sienna;
         font-size: 20px;
     }
 
@@ -360,7 +715,7 @@
     }
 
     .home-features {
-        @apply mt-11 grid max-w-[650px] grid-cols-4;
+        @apply mt-9 grid max-w-[650px] grid-cols-4;
     }
 
     .home-feature {
@@ -426,12 +781,36 @@
     }
 
     /* Promos ----------------------------------------------------------- */
+    /*
+     * A promo card reads as a picture beside its text rather than a picture
+     * above it: the offer is a headline offer, and a customer scanning the page
+     * should meet the title in the same glance as the image.
+     *
+     * `md:grid-cols-2` with `md:aspect-auto` is what turns the column into a
+     * half. Below `md` the two areas stack and the image takes a 16:9 band —
+     * `aspect-[16/9]` is set first and dropped at `md`, because a 16:9 band in a
+     * half-width column would letterbox the picture.
+     *
+     * `self-stretch` on the media is deliberate. Without it the image is
+     * stretched by the grid's default `align-items: stretch` to the full height
+     * of a text column that can be much taller, which is exactly the
+     * "squashed/stretched photo" failure the flexbox fix on the Services page
+     * was about.
+     *
+     * The minimum height is `md:`-only, and that qualifier matters more than it
+     * looks. `aspect-ratio` and `min-height` talk to each other: a minimum
+     * height of 13rem sets a minimum *width* of 13 × 16/9 ≈ 370px, and below
+     * `md` the column is the full page width — 356px at a 390px viewport. The
+     * picture then refuses to be narrower than the column it sits in and
+     * overflows it. Above `md` the column is half the grid and the minimum is
+     * what stops a one-line offer from collapsing the picture to a sliver.
+     */
     .home-promo-grid {
-        @apply mt-14 grid gap-7 md:grid-cols-2 lg:grid-cols-3;
+        @apply mt-14 grid gap-7;
     }
 
     .home-promo-card {
-        @apply flex flex-col overflow-hidden rounded-[22px] border border-line/85 bg-soft;
+        @apply grid overflow-hidden rounded-[22px] border border-line/85 bg-soft md:grid-cols-2;
         box-shadow: 0 12px 34px rgb(var(--color-primary) / 0.06);
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
@@ -442,7 +821,7 @@
     }
 
     .home-promo-media {
-        @apply relative flex h-[210px] items-center justify-center overflow-hidden bg-gradient-to-br from-blush to-gold-light/50;
+        @apply relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-br from-blush to-gold-light/50 md:aspect-auto md:min-h-[13rem] md:self-stretch;
     }
 
     .home-promo-media img {
@@ -463,19 +842,29 @@
     }
 
     .home-promo-body {
-        @apply flex flex-1 flex-col p-6;
+        @apply flex flex-col p-6;
     }
 
     .home-promo-body h3 {
         @apply font-heading text-2xl font-bold text-primary-dark;
     }
 
+    /*
+     * The whole description, with the line breaks the admin typed kept. Promo
+     * copy is written as two or three short paragraphs and read as a
+     * description of what the customer gets, so truncating it to a fixed
+     * character count threw away the actual offer.
+
+     * `whitespace-pre-line` does the paragraph breaks without the `<br>` tags
+     * reaching the DOM, and `break-words` stops a long unbroken URL or promo
+     * code from pushing the card wider than its column.
+     */
     .home-promo-body > p {
-        @apply mt-2.5 flex-1 text-[14.5px] leading-relaxed text-ink-muted;
+        @apply mt-2.5 flex-1 whitespace-pre-line break-words text-[14.5px] leading-relaxed text-ink-muted;
     }
 
     .home-promo-foot {
-        @apply mt-4 flex items-center justify-between gap-3 border-t border-line pt-4;
+        @apply mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4;
     }
 
     .home-promo-validity {
@@ -566,15 +955,16 @@
 
     @media (max-width: 900px) {
         .home-hero { min-height: 0; grid-template-columns: 1fr; }
-        .home-hero-copy { min-height: 0; padding: 78px 28px 96px; }
+        .home-hero-copy { min-height: 0; padding: 30px 28px 64px; }
         .home-hero-copy::before {
             left: -40px;
             top: 0;
             width: 100%;
             height: 100%;
-            border-right: 0;
-            border-radius: 0 0 55% 0;
+            -webkit-mask-image: var(--home-wave-bottom);
+            mask-image: var(--home-wave-bottom);
         }
+        .home-hero-edge { display: none; }
         .home-hero-media { min-height: 430px; }
         .home-hero-title { font-size: 58px; }
         .home-script { font-size: 42px; }
@@ -584,7 +974,7 @@
     }
 
     @media (max-width: 600px) {
-        .home-hero-copy { padding: 60px 20px 84px; }
+        .home-hero-copy { padding: 24px 20px 56px; }
         .home-hero-copy::before { left: -80px; }
         .home-kicker { font-size: 13px; letter-spacing: 3px; }
         .home-hero-title { font-size: 48px; }
@@ -608,73 +998,11 @@
     }
 
     /* ---------------------------------------------------------------------
-     | Auth pages
-     | Split-screen sign-in / register ported from the reference
-     | implementation in ../BalaiTiArjud: a photo panel carrying the brand
-     | voice on the left, a tabbed form on the right.
+     | Auth tab strip
+     | The Login/Register switcher shown inside the sign-in card. The two-panel
+     | shell itself lives in the "Admin portal sign-in" block below, shared by
+     | the customer and staff auth surfaces via layouts/auth.
      |------------------------------------------------------------------*/
-    .auth-page {
-        @apply grid w-full lg:grid-cols-2;
-        min-height: 100vh;
-    }
-
-    .auth-visual {
-        @apply relative hidden items-center justify-center overflow-hidden lg:flex;
-        background-image: var(--auth-visual-image);
-        background-position: center;
-        background-size: cover;
-    }
-
-    /* Warm overlay so cream text stays legible over the photo. */
-    .auth-visual::before {
-        content: '';
-        @apply absolute inset-0;
-        background: linear-gradient(
-            100deg,
-            rgb(var(--color-primary-dark) / 0.88) 0%,
-            rgb(var(--color-primary-dark) / 0.62) 45%,
-            rgb(var(--color-primary-dark) / 0.3) 100%
-        );
-    }
-
-    .auth-brand {
-        @apply relative z-10 mx-auto max-w-md px-10 text-center text-cream;
-    }
-
-    .auth-brand-logo {
-        @apply mx-auto mb-5 h-24 w-24 rounded-full object-cover;
-        box-shadow: 0 6px 26px rgb(var(--color-primary-dark) / 0.45);
-    }
-
-    .auth-brand-title {
-        @apply block font-script leading-none text-cream;
-        font-size: 40px;
-    }
-
-    .auth-brand-sub {
-        @apply mt-1 block font-heading font-semibold text-gold-light;
-        font-size: 20px;
-    }
-
-    .auth-brand-heading {
-        @apply mt-7 font-heading font-bold leading-tight text-cream;
-        font-size: 34px;
-    }
-
-    .auth-brand-script {
-        @apply mt-1 font-script text-gold-light;
-        font-size: 24px;
-    }
-
-    .auth-box {
-        @apply flex w-full items-center justify-center px-6 py-12 sm:px-10;
-    }
-
-    .auth-form {
-        @apply w-full;
-        max-width: 480px;
-    }
-
     .auth-tabs {
         @apply mb-7 flex border-b border-line;
     }
@@ -688,8 +1016,417 @@
         @apply border-b-2 border-primary font-bold text-primary;
     }
 
-    @media (max-width: 1023px) {
-        .auth-page { min-height: 100vh; }
+    /* ---------------------------------------------------------------------
+     | Admin portal sign-in
+     | Deliberately NOT shared with layouts/guest. The admin guard has its
+     | own route namespace, rate-limit bucket and session namespace, and this
+     | two-panel treatment is only ever used by the staff portal entry point.
+     | Ported from the supplied mockup: a photo brand panel on the left
+     | carrying the salon voice, a bordered sign-in card on the right.
+     |------------------------------------------------------------------*/
+    .admin-auth {
+        @apply grid w-full lg:grid-cols-[48.5fr_51.5fr];
+        min-height: 100vh;
+    }
+
+    /* Two-panel viewports lock to the viewport exactly.
+     *
+     * The photo panel was always a fixed, clipped slice, but the form panel
+     * could grow past the viewport and turn the page into a scroller, so the
+     * two sides drifted out of step: one fixed, one sliding. Height is now
+     * pinned to the viewport and overflow clipped, so NEITHER side scrolls and
+     * the card is centred in the space that is actually visible. The card is
+     * kept inside that space by the max-height queries below, not by
+     * scrolling to reach a clipped submit button.
+     *
+     * Below `lg` there is no photo panel at all — the form stacks on its own
+     * full page — so that case keeps `min-height` and stays scrollable. */
+    @media (min-width: 1024px) {
+        .admin-auth {
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+    }
+
+    .admin-auth-brand {
+        @apply relative hidden overflow-hidden lg:flex lg:flex-col;
+        background-image: var(--admin-auth-image);
+        background-position: center;
+        background-size: cover;
+    }
+
+    /* Contrast veil over the photo.
+     *
+     * The old stack lightened the panel in three places at once, all of which
+     * landed where the copy now sits: a warm radial LIFT at 29% 29% (0.22
+     * alpha, right behind the emblem and brand name), a vertical shade that was
+     * lightest at the TOP (0.18, behind the name, tagline and heading), and a
+     * horizontal ramp whose midpoint was the lightest stop (0.48). Centring the
+     * content column moved the copy over that 0.48 dip, which is why legibility
+     * dropped once the logo was centred.
+     *
+     * Replaced with a single even veil that only ever darkens: 0.55 at the top
+     * rising to 0.75 at the bottom, so contrast is monotonic and consistent
+     * from the heading down to the feature labels. The faint horizontal wash
+     * underneath is kept purely for depth and adds at most 0.12, so it cannot
+     * reintroduce a light patch. */
+    .admin-auth-brand::before {
+        content: '';
+        @apply absolute inset-0;
+        background:
+            linear-gradient(180deg, rgb(40 10 8 / 0.55) 0%, rgb(28 7 6 / 0.66) 55%, rgb(20 5 4 / 0.75) 100%),
+            linear-gradient(90deg, rgb(40 10 8 / 0.10), transparent 55%, rgb(20 5 4 / 0.12));
+    }
+
+    /* Solid disc bleeding off the top-left corner. */
+    .admin-auth-brand::after {
+        content: '';
+        @apply absolute rounded-full;
+        width: 390px;
+        height: 390px;
+        left: -250px;
+        top: -230px;
+        background: rgb(var(--color-primary-dark));
+        opacity: 0.93;
+    }
+
+    /* Thin gold ring nested inside that disc. */
+    .admin-auth-ring {
+        @apply absolute rounded-full;
+        z-index: 2;
+        width: 330px;
+        height: 330px;
+        left: -185px;
+        top: -165px;
+        border: 1px solid rgb(var(--color-gold-light) / 0.9);
+    }
+
+    /* Centred content column inside the photo panel.
+     *
+     * The mockup positioned this absolutely (left: 20.2%, top: 12%,
+     * width: 58%). As a `relative` element those became offsets that shoved
+     * the whole block right and down while `margin: auto` was trying to centre
+     * it — which is why the content read as cramped against the left edge.
+     * Dropped the offsets entirely: `flex-1` + `justify-center` centres it
+     * vertically, `mx-auto` + `max-w` centres it horizontally, and `px-10`
+     * guarantees breathing room so nothing touches the panel edge. The
+     * feature row is `w-full`, so it spans this same column rather than
+     * running edge to edge. */
+    .admin-auth-brand-inner {
+        @apply relative z-[3] mx-auto flex w-full max-w-[610px] flex-1 flex-col justify-center px-10 py-10 text-cream;
+    }
+
+    /* Sizing and centring only.
+     *
+     * The emblem is the first child of a flex column, so it would otherwise sit
+     * at flex-start — flush with the "B" of "Balai ti Arjud" below it. `self-
+     * center` is the flexbox-native way to centre a flex item on the cross
+     * axis; `mx-auto` covers the same ground if this is ever used outside a
+     * flex parent. The maroon face and gold ring come from the artwork. */
+    .admin-auth-mark {
+        @apply mx-auto mb-6 self-center;
+    }
+
+    .admin-auth-name {
+        @apply text-center font-script leading-none text-cream;
+        font-size: 46px;
+        text-shadow: 0 2px 3px rgb(0 0 0 / 0.22);
+    }
+
+    /* "Glow & Co. Beauty Lounge" tagline under the script wordmark.
+     *
+     * Was text-gold-light (#D9A982), a mid-tone tan. Cormorant Garamond is a
+     * light, elegant serif whose strokes go thin at this size, so over a photo
+     * that is only veiled to 0.55 at the top the tagline washed out. Moved to
+     * cream (#FFFDF8, ~2.5x the luminance of the tan) and added a dark
+     * text-shadow so the thin strokes stay separated even where a bright patch
+     * of the photo shows through. Slightly larger and wider-tracked to give
+     * those strokes more presence. */
+    .admin-auth-sub {
+        @apply text-center font-heading font-bold text-cream;
+        font-size: 23px;
+        letter-spacing: 0.6px;
+        margin: 10px 0 48px;
+        text-shadow: 0 1px 2px rgb(20 5 4 / 0.75), 0 0 18px rgb(20 5 4 / 0.45);
+    }
+
+    .admin-auth-divider {
+        @apply mb-7 block h-0.5 w-[42px] bg-gold-mid;
+    }
+
+    .admin-auth-title {
+        @apply font-display font-bold text-cream;
+        font-size: 38px;
+        line-height: 1.18;
+        letter-spacing: -0.7px;
+        margin: 0 0 16px;
+    }
+
+    /* The sign-in card's own heading. Deliberately NOT .admin-auth-title:
+     * that one is the brand panel's cream-on-photo heading, so reusing it here
+     * rendered cream text on the cream card and the h1 looked blank. */
+    .admin-auth-card-title {
+        @apply font-display font-bold text-primary;
+        font-size: 42px;
+        line-height: 1.15;
+        letter-spacing: -0.8px;
+    }
+
+    /* ---------------------------------------------------------------------
+     | Password eye toggle
+     |------------------------------------------------------------------*/
+
+    /* Two eye marks, one shown at a time. Which one is decided by the
+     * `is-revealed` class the toggle script puts on the button — the script
+     * never touches either SVG, so the Blade stays the only thing that decides
+     * what the icons are. */
+    .admin-auth-eye,
+    .admin-auth-eye-slash {
+        @apply h-5 w-5 text-ink-muted transition-colors;
+    }
+
+    /* Closed: the plain eye, since that is the state the field starts in. */
+    .admin-auth-eye-slash {
+        @apply hidden;
+    }
+
+    /* Revealed: swap them. `hidden` and `inline-flex` rather than opacity, so the
+     * hidden one is out of the layout as well as out of sight. */
+    .admin-auth-eye-toggle.is-revealed .admin-auth-eye {
+        @apply hidden;
+    }
+
+    .admin-auth-eye-toggle.is-revealed .admin-auth-eye-slash {
+        @apply inline-block text-primary;
+    }
+
+    .admin-auth-copy {
+        @apply leading-[1.45] text-[#fff4e6];
+        font-size: 18px;
+        max-width: 570px;
+        margin: 0;
+    }
+
+    .admin-auth-features {
+        @apply mt-[42px] grid w-full grid-cols-4 gap-[22px];
+    }
+
+    .admin-auth-feature {
+        @apply text-center text-cream;
+        font-size: 15px;
+        line-height: 1.25;
+    }
+
+    .admin-auth-feature-icon {
+        @apply mx-auto mb-2.5 grid h-[45px] w-[45px] place-items-center rounded-full text-[21px] text-[#f4d49e];
+        border: 1px solid rgb(238 206 158 / 0.7);
+        background: rgb(222 179 117 / 0.16);
+    }
+
+    .admin-auth-floral {
+        @apply absolute select-none text-[105px] leading-none;
+        z-index: 3;
+        color: rgb(236 202 157 / 0.68);
+    }
+
+    .admin-auth-floral-left {
+        left: 20px;
+        bottom: -18px;
+        opacity: 0.65;
+        transform: rotate(-15deg);
+    }
+
+    .admin-auth-floral-right {
+        right: 18px;
+        top: 25px;
+        opacity: 0.25;
+        transform: rotate(15deg);
+    }
+
+    /* Form panel --------------------------------------------------------- */
+    .admin-auth-panel {
+        @apply relative flex items-center justify-center;
+        /* Only the stacked, single-column layout below `lg` may scroll. In the
+         * two-panel view the shell clips, so this stays hidden there and the
+         * card is measured to fit rather than scrolled to. */
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 42px 6.5%;
+        background:
+            radial-gradient(circle at 92% 7%, rgb(238 213 181 / 0.35), transparent 18%),
+            radial-gradient(circle at 5% 96%, rgb(235 211 179 / 0.25), transparent 22%),
+            rgb(var(--color-linen));
+    }
+
+    /* The two faint cropped rings in the panel corners. */
+    .admin-auth-panel::before,
+    .admin-auth-panel::after {
+        content: '';
+        @apply absolute rounded-full;
+    }
+
+    .admin-auth-panel::before {
+        right: -145px;
+        top: -155px;
+        width: 330px;
+        height: 330px;
+        border: 1px solid rgb(var(--color-gold) / 0.52);
+    }
+
+    .admin-auth-panel::after {
+        left: -170px;
+        bottom: -185px;
+        width: 360px;
+        height: 360px;
+        border: 1px solid rgb(var(--color-gold) / 0.38);
+    }
+
+    .admin-auth-card {
+        @apply relative;
+        z-index: 2;
+        width: min(100%, 680px);
+        padding: 43px 42px 42px;
+        background: rgb(255 252 247 / 0.76);
+        border: 1px solid #c98d6b;
+        border-radius: 18px;
+        box-shadow: 0 18px 50px rgb(108 55 37 / 0.1);
+    }
+
+    /* Customer sign-in and register carry short, single-column forms, so the
+     * 680px default left a lot of dead space either side of the inputs. This
+     * modifier trims the card to hug its content. The staff portal still opts
+     * into the wide default via `$wideCard` on AdminSessionController. */
+    .admin-auth-card-narrow {
+        width: min(100%, 520px);
+    }
+
+    /* Short viewports (1366x768 laptops, 720p panels, browser zoom).
+     *
+     * The register form is the tallest card in the app. With the default
+     * 43px/42px card padding and 42px panel padding it measured ~705px tall,
+     * which pushed past a 768px viewport — and because the panel clips, the
+     * overflow was unreachable rather than merely scrollable. Reclaim the
+     * vertical padding here so the card fits without scrolling. */
+    @media (max-height: 820px) {
+        .admin-auth-card {
+            padding-top: 28px;
+            padding-bottom: 26px;
+        }
+
+        .admin-auth-panel {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+    }
+
+    /* Very short viewports: small laptops at 125-150% zoom, split screens, and
+     * short browser windows. The form panel no longer scrolls, so the brand
+     * column and the card both have to shed height here instead. */
+    @media (max-height: 720px) {
+        .admin-auth-card {
+            padding-top: 22px;
+            padding-bottom: 20px;
+        }
+
+        .admin-auth-panel {
+            padding-top: 14px;
+            padding-bottom: 14px;
+        }
+
+        .admin-auth-mark { margin-bottom: 16px; }
+        .admin-auth-name { font-size: 38px; }
+        .admin-auth-sub { font-size: 20px; margin-top: 6px; margin-bottom: 30px; }
+        .admin-auth-divider { margin-bottom: 20px; }
+        .admin-auth-title { font-size: 32px; margin-bottom: 12px; }
+        .admin-auth-copy { font-size: 16px; }
+        .admin-auth-features { margin-top: 28px; }
+    }
+
+    /* Last resort for genuinely short windows. Nothing scrolls, so the card
+     * spends its last few pixels here to keep the submit button and the
+     * "Already have an account?" link inside the viewport. */
+    @media (max-height: 660px) {
+        .admin-auth-card {
+            padding-top: 16px;
+            padding-bottom: 14px;
+        }
+
+        .admin-auth-panel {
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .admin-auth-mark { margin-bottom: 10px; }
+        .admin-auth-sub { margin-bottom: 22px; }
+        .admin-auth-features { margin-top: 20px; }
+    }
+
+    @media (min-width: 1024px) {
+        .admin-auth-panel {
+            overflow: hidden;
+        }
+    }
+
+    .admin-auth-badge {
+        @apply inline-flex items-center gap-[7px] rounded-pill bg-blush px-[13px] py-2 text-[13px] font-bold uppercase tracking-[0.7px] text-sienna;
+    }
+
+    .admin-auth-submit {
+        @apply w-full rounded-pill border-0 bg-primary text-cream transition;
+        height: 55px;
+        font-size: 16px;
+        font-weight: 700;
+        box-shadow: 0 8px 18px rgb(var(--color-primary) / 0.15);
+    }
+
+    .admin-auth-submit:hover {
+        background: rgb(var(--color-primary-dark));
+        transform: translateY(-1px);
+    }
+
+    /* "OR" rule between the submit and the back link. */
+    .admin-auth-or {
+        @apply my-[27px] flex items-center gap-[15px] text-[13px] font-semibold text-[#aa9186];
+    }
+
+    .admin-auth-or::before,
+    .admin-auth-or::after {
+        content: '';
+        @apply h-px flex-1;
+        background: #e7d9ce;
+    }
+
+    .admin-auth-back {
+        @apply block w-full rounded-pill border text-center font-semibold transition;
+        height: 53px;
+        font-size: 16px;
+        border-color: #ad654d;
+        color: #7d3024;
+    }
+
+    .admin-auth-back:hover {
+        background: #f8eee3;
+    }
+
+    @media (max-width: 1050px) {
+        /* Narrower column and tighter gutters, still centred. */
+        .admin-auth-brand-inner { max-width: 560px; padding-left: 32px; padding-right: 32px; }
+        .admin-auth-title { font-size: 32px; }
+        .admin-auth-name { font-size: 39px; }
+        .admin-auth-features { gap: 10px; }
+        .admin-auth-feature { font-size: 13px; }
+    }
+
+    @media (max-width: 760px) {
+        .admin-auth { grid-template-columns: 1fr; }
+        .admin-auth-brand { min-height: 520px; }
+        .admin-auth-brand-inner { max-width: none; padding-left: 24px; padding-right: 24px; }
+        .admin-auth-panel { min-height: 700px; padding: 35px 20px; }
+        .admin-auth-card { padding: 32px 24px; }
+        .admin-auth-name { font-size: 42px; }
+        .admin-auth-features { gap: 8px; }
+        .admin-auth-feature { font-size: 12px; }
     }
 }
 

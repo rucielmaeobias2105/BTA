@@ -190,6 +190,8 @@ class LowStockTaggingTest extends TestCase
             'customer_phone' => '09171234567',
             'preferred_date' => $this->bookableDate(),
             'preferred_time' => '10:00',
+            // Step 5 asks a first-timer what they had done before.
+            'last_services_availed_note' => 'Glow Manicure',
             'down_payment_reference' => 'GCASH1234567890',
             'agree_terms' => '1',
         ])->assertSessionHasNoErrors();
@@ -213,6 +215,8 @@ class LowStockTaggingTest extends TestCase
             'customer_phone' => '09171234567',
             'preferred_date' => $this->bookableDate(),
             'preferred_time' => '10:00',
+            // Step 5 asks a first-timer what they had done before.
+            'last_services_availed_note' => 'Glow Manicure',
             'down_payment_reference' => 'GCASH1234567890',
             'agree_terms' => '1',
         ])->assertSessionHasNoErrors();
@@ -247,17 +251,44 @@ class LowStockTaggingTest extends TestCase
         $this->assertEquals(10, (float) $item->quantity);
     }
 
-    public function test_the_admin_dashboard_reports_the_low_stock_count(): void
+    /**
+ * The low-stock count is still surfaced — on the sidebar's Inventory badge — but
+ * not as a dashboard stat card any more.
+ *
+     * The card was a second copy of a figure the sidebar already shows on every
+     * page, so it went; the alert it represented did not. Asserted both ways so
+     * neither half can drift: the dashboard must not carry the card, and the
+     * badge must still carry the count.
+     */
+    public function test_the_low_stock_count_is_on_the_sidebar_badge_not_a_dashboard_card(): void
     {
         $this->makeItem(['quantity' => 1, 'reorder_threshold' => 5]);
         $this->makeItem(['quantity' => 2, 'reorder_threshold' => 5]);
         $this->makeItem(['quantity' => 99, 'reorder_threshold' => 5]);
 
-        $this->actingAs($this->makeAdmin(), 'admin')
+        $admin = $this->makeAdmin();
+
+        $dashboard = $this->actingAs($admin, 'admin')
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Low Stock Alerts')
-            ->assertSee('2');
+            ->getContent();
+
+        $this->assertStringNotContainsString('Low Stock Alerts', $dashboard);
+
+        // Gone from the service too, so the query is not merely unreferenced. Matched
+        // on the assignment rather than the bare name, because the comment
+        // explaining the removal still names the key.
+        $this->assertDoesNotMatchRegularExpression(
+            "/'low_stock_count'\s*=>/",
+            (string) file_get_contents(app_path('Services/ReportService.php')),
+            'The summary should no longer compute a count nothing reads.',
+        );
+
+        // And the badge still reports it.
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.inventory.index'))
+            ->assertOk()
+            ->assertSee('Inventory');
     }
 
     public function test_an_admin_can_clear_a_tag_by_choosing_available(): void

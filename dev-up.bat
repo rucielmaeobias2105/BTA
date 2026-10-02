@@ -15,6 +15,7 @@ cd /d "%~dp0"
 
 set PORT=8000
 set SUPERVISOR=%CD%\tools\dev-supervisor.ps1
+set WAITER=%CD%\tools\wait-for-site.ps1
 set PIDFILE=%CD%\storage\dev-supervisor.pid
 set READYFILE=%CD%\storage\dev-server.ready
 
@@ -23,6 +24,13 @@ echo  ==========================================================
 echo   Balai ti Arjud - starting the always-on dev server
 echo  ==========================================================
 echo.
+
+REM The ready marker is a hint, not proof. One left behind by a crash, a
+REM force-kill or a reboot survives, and trusting it is exactly what used to
+REM open the browser onto a dead port - Firefox would then report "can't
+REM connect to 127.0.0.1:8000". It is cleared unconditionally on every launch,
+REM so the wait below can only ever be satisfied by a real answer.
+del /q "%READYFILE%" >nul 2>&1
 
 REM ------------------------------------------------------------
 REM  1. Already running?
@@ -56,33 +64,31 @@ if errorlevel 1 (
 )
 
 REM ------------------------------------------------------------
-REM  3. Wait until the site answers
+REM  3. Wait until the site really answers
 REM ------------------------------------------------------------
 :wait
-echo [2/3] Waiting for http://localhost:%PORT% ...
+echo [2/3] Waiting for http://localhost:%PORT% to answer ...
 
-set /a TRIES=0
-:waitloop
-REM Portable ~1 second delay. Avoids "timeout", which is shadowed by the GNU
-REM coreutils build when this script is launched from Git Bash, and avoids
-REM %WINDIR%, which is not always inherited.
-ping -n 2 127.0.0.1 >nul
-set /a TRIES+=1
+REM This asks the site itself rather than trusting a file on disk, so the
+REM browser is only ever opened onto a page that is genuinely up. Run with
+REM -File so its exit code reaches errorlevel below; all its detail goes to
+REM storage\logs\wait-for-site.log.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%WAITER%" -Port %PORT% -TimeoutSeconds 240
 
-REM The supervisor drops this marker as soon as the site really answers, so
-REM the browser is never opened onto a "can't connect" page.
-if exist "%READYFILE%" goto :ready
-
-if !TRIES! GEQ 180 (
+if errorlevel 1 (
     echo.
-    echo WARNING: the site is not answering after 3 minutes.
-    echo          Read storage\logs\dev-supervisor.log and storage\logs\serve.log.
+    echo WARNING: http://localhost:%PORT% is still not answering after 4 minutes.
+    echo          Something is failing during boot. Read, in this order:
+    echo            storage\logs\wait-for-site.log
+    echo            storage\logs\dev-supervisor.log
+    echo            storage\logs\serve.log
+    echo.
+    echo          Your browser has deliberately NOT been opened, so it cannot
+    echo          land on an error page. MySQL running is the usual suspect -
+    echo          check the XAMPP control panel.
     echo.
     exit /b 1
 )
-goto :waitloop
-
-:ready
 echo       The site is up.
 goto :open
 

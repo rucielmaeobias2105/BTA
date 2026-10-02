@@ -2,20 +2,23 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AdminRole;
 use App\Enums\TermsCategory;
 use App\Models\Admin;
 use App\Models\TermsAndCondition;
 use Illuminate\Database\Seeder;
 
 /**
- * Versioned T&C content. The booking / cancellation / reschedule checkboxes on
- * the customer side render whatever is published here (Admin Flow 10).
+ * T&C content. The booking / cancellation / reschedule checkboxes on the customer
+ * side render whatever is published here (Admin Flow 10).
+ *
+ * One row per category — there is no version history to seed.
  */
 class TermsSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = Admin::where('role', 'super_admin')->first();
+        $admin = Admin::where('role', AdminRole::Admin)->first();
 
         $drafts = [];
 
@@ -65,38 +68,17 @@ class TermsSeeder extends Seeder
         foreach ($drafts as $categoryValue => $content) {
             $category = TermsCategory::from($categoryValue);
 
-            // v1 — the original, now superseded
+            // Keyed on the category alone, so re-seeding refreshes the live text
+            // rather than appending a second row for a policy that owns one row.
             TermsAndCondition::updateOrCreate(
-                ['category' => $categoryValue, 'version' => 1],
+                ['category' => $categoryValue],
                 [
                     'content' => $content,
-                    'is_published' => false,
-                    'published_at' => now()->subMonths(6),
-                    'created_by' => $admin?->id,
-                ],
-            );
-
-            // v2 — currently published to customers
-            TermsAndCondition::updateOrCreate(
-                ['category' => $categoryValue, 'version' => 2],
-                [
-                    'content' => $content
-                        .'<hr><p><em>Version 2 &mdash; updated to reflect the current '
-                        .$this->updateNote($category).'</em></p>',
                     'is_published' => true,
                     'published_at' => now()->subWeeks(2),
                     'created_by' => $admin?->id,
                 ],
             );
         }
-    }
-
-    protected function updateNote(TermsCategory $category): string
-    {
-        return match ($category) {
-            TermsCategory::Booking => 'manual GCash down payment verification policy',
-            TermsCategory::Cancellation => 'cancellation windows and no-show policy',
-            TermsCategory::Rescheduling => 'availability rules for rescheduled slots',
-        };
     }
 }

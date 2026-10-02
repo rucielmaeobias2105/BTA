@@ -48,7 +48,9 @@ class AppointmentStatusUpdateTest extends TestCase
                 'status' => 'confirmed',
             ])
             ->assertRedirect(route('admin.appointments.index'))
-            ->assertSessionHas('status');
+            // A toast, not the old page banner: status changes now confirm
+            // through the shared toast rather than an inline alert.
+            ->assertSessionHas('toast', ['type' => 'success', 'message' => 'Appointment accepted.']);
 
         $appointment->refresh();
 
@@ -67,7 +69,7 @@ class AppointmentStatusUpdateTest extends TestCase
         $appointment = $this->makeAppointment($user);
 
         $this->actingAs($admin, 'admin')
-            ->patch(route('admin.appointments.status', $appointment), ['status' => 'cancelled'])
+            ->patch(route('admin.appointments.status', $appointment), ['status' => 'declined'])
             ->assertSessionHasNoErrors();
 
         $appointment->refresh();
@@ -139,9 +141,15 @@ class AppointmentStatusUpdateTest extends TestCase
 
         $this->assertSame('Prefers late afternoon slots.', $appointment->fresh()->admin_notes);
 
-        // Never rendered on the customer-facing views.
+        // Never rendered on the customer-facing views. `/appointments/{id}` is
+        // the redirect to the list with the dialog open, so following it is what
+        // actually reaches the customer-facing rendering of this booking.
         $this->actingAs($user)
             ->get(route('appointments.show', $appointment))
+            ->assertRedirect(route('appointments.index', ['view' => $appointment->id]));
+
+        $this->actingAs($user)
+            ->get(route('appointments.index', ['view' => $appointment->id]))
             ->assertOk()
             ->assertDontSee('Prefers late afternoon slots.');
     }
@@ -236,7 +244,7 @@ class AppointmentStatusUpdateTest extends TestCase
                 'reason_preset' => 'Schedule conflict',
                 'agree_cancellation_policy' => '1',
             ])
-            ->assertRedirect(route('appointments.show', $appointment));
+            ->assertRedirect(route('appointments.index', ['view' => $appointment->id]));
 
         $appointment->refresh();
 

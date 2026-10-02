@@ -12,7 +12,7 @@ class AppointmentReminderNotification extends BaseAppointmentNotification
                 .$this->appointment->preferred_date->format('M j, Y').' at '.$this->appointment->time_label.'.',
             'icon' => 'bell',
             'tone' => 'gold',
-            'url' => route('appointments.show', $this->appointment),
+            'url' => $this->detailsUrl(),
         ];
     }
 }

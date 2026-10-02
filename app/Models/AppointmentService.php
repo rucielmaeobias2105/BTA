@@ -19,6 +19,7 @@ class AppointmentService extends Model
         'service_name',
         'variant_name',
         'price',
+        'display_price',
         'duration_minutes',
         'quantity',
     ];
@@ -52,6 +53,28 @@ class AppointmentService extends Model
         return $this->variant_name
             ? "{$this->service_name} ({$this->variant_name})"
             : $this->service_name;
+    }
+
+    /**
+     * The price as the customer was shown it, "249/499" and all.
+     *
+     * `price` on this table stays a DECIMAL because it is the figure the total
+     * is multiplied from; the advertised string is snapshotted alongside it in
+     * `display_price`, and only the strings before that column existed fall
+     * back to the number.
+     *
+     * Takes the raw value as a parameter rather than reading `$this->…` back,
+     * which would ask for this very accessor again.
+     */
+    public function getDisplayPriceAttribute(mixed $value): string
+    {
+        $shown = trim((string) $value);
+
+        if ($shown === '') {
+            $shown = number_format((float) $this->price, 2, '.', '');
+        }
+
+        return $shown;
     }
 
     public function getLineTotalAttribute(): float

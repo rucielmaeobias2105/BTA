@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\AdminRole;
 use App\Models\Admin;
 use App\Models\Promo;
-use App\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -51,12 +50,14 @@ class TabTitleTest extends TestCase
             ->assertSee('<title>GELISH MANICURE | Balai ti Arjud</title>', false);
     }
 
-    public function test_the_promo_link_and_its_section_both_declare_the_promo_tab_title(): void
+    public function test_promos_have_their_own_page_rather_than_a_home_section(): void
     {
         $this->makeSalonSettings();
         $this->makeService(['name' => 'Gelish Manicure', 'category' => 'Nail Care']);
 
-        // The offers section only renders when a promo is active.
+        // Promos used to be an `#offers` section on the landing page that the
+        // nav jumped to. They now have a dedicated page, so the tab title comes
+        // from the page's own @section('title') instead of data-tab-title.
         Promo::create([
             'title' => 'Glow Package',
             'description' => 'Manicure and facial for one price.',
@@ -67,10 +68,13 @@ class TabTitleTest extends TestCase
 
         $this->get('/')
             ->assertOk()
-            // The jump link and its target must agree, otherwise clicking the
-            // link sets one title and the hash change immediately resets it.
-            ->assertSee('id="offers" class="home-section" data-tab-title="PROMO | Balai ti Arjud"', false)
-            ->assertSee('href="'.route('home').'#offers" class="customer-nav-link" data-tab-title="PROMO | Balai ti Arjud"', false);
+            ->assertDontSee('id="offers"', false)
+            ->assertSee('href="'.route('promos.index').'"', false);
+
+        $this->get('/promos')
+            ->assertOk()
+            ->assertSee('<title>PROMO | Balai ti Arjud</title>', false)
+            ->assertSee('Glow Package');
     }
 
     public function test_admin_pages_keep_the_admin_suffix(): void
@@ -81,7 +85,7 @@ class TabTitleTest extends TestCase
             'username' => 'tabtitle',
             'email' => 'tabtitle@example.test',
             'password' => 'password',
-            'role' => AdminRole::SuperAdmin,
+            'role' => AdminRole::Admin,
             'is_active' => true,
         ]);
 

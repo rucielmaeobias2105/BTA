@@ -2,22 +2,21 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AdminRole;
 use App\Enums\AppointmentStatus;
 use App\Enums\ChangedBy;
 use App\Enums\DownPaymentStatus;
 use App\Models\Admin;
 use App\Models\Appointment;
 use App\Models\AppointmentService;
-use App\Models\Review;
 use App\Models\SalonSetting;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Carbon;
 
 /**
  * Demo appointments spread across every status so the admin dashboard,
- * appointment table, reports and review moderation all have content.
+ * appointment table and reports all have content.
  */
 class AppointmentSeeder extends Seeder
 {
@@ -130,35 +129,12 @@ class AppointmentSeeder extends Seeder
             }
 
             $this->recordHistory($appointment, $status, $cancelReason);
-
-            // Completed appointments get a review, except one so the
-            // "rate your completed visit" path is demonstrable.
-            if ($status === AppointmentStatus::Completed && ! in_array($index, [7], true)) {
-                $ratings = [5, 5, 4, 5, 3, 4, 5];
-                $messages = [
-                    'Amazing service! My therapist was so gentle and the result lasted for weeks.',
-                    'Very happy with the result. The room was spotless and everyone was so welcoming.',
-                    'Great value for the price. Booking was easy through the website.',
-                    'Loved it! The glow manicure is the best I have had in this town.',
-                    'Good service overall, though we ran a little late starting.',
-                    'The facial was soothing and my skin felt great afterwards.',
-                ];
-
-                Review::create([
-                    'appointment_id' => $appointment->id,
-                    'user_id' => $user->id,
-                    'service_id' => $lines[0]['service_id'],
-                    'rating' => $ratings[$index % count($ratings)],
-                    'message' => $messages[$index % count($messages)],
-                    'customer_name' => $user->full_name,
-                ]);
-            }
         }
     }
 
     protected function recordHistory(Appointment $appointment, AppointmentStatus $status, ?string $cancelReason): void
     {
-        $admin = Admin::where('role', 'super_admin')->first();
+        $admin = Admin::where('role', AdminRole::Admin)->first();
 
         $appointment->recordStatusChange(
             AppointmentStatus::Pending,

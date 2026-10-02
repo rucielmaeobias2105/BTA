@@ -10,6 +10,7 @@ use App\Models\Appointment;
 use App\Models\TermsAndCondition;
 use App\Notifications\AppointmentCancelledByCustomerNotification;
 use App\Services\BookingService;
+use App\Support\SendsNotificationsQuietly;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +19,8 @@ use Illuminate\View\View;
 
 class CancelAppointmentController extends Controller
 {
+    use SendsNotificationsQuietly;
+
     /** Quick-pick reasons; the field also accepts free text. */
     public const REASONS = [
         'Schedule conflict',
@@ -96,10 +99,14 @@ class CancelAppointmentController extends Controller
         // Stock held for this booking goes back on the shelf.
         $this->booking->restoreInventory($appointment);
 
-        $appointment->user?->notify(new AppointmentCancelledByCustomerNotification($appointment));
+        $this->notifyQuietly(
+            $appointment->user,
+            new AppointmentCancelledByCustomerNotification($appointment),
+            'appointment cancelled by customer'
+        );
 
         return redirect()
-            ->route('appointments.show', $appointment)
+            ->route('appointments.index', ['view' => $appointment->id])
             ->with('status', "Appointment {$appointment->reference_number} has been cancelled.");
     }
 

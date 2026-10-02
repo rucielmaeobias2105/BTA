@@ -11,7 +11,7 @@ class AppointmentConfirmedNotification extends BaseAppointmentNotification
             'message' => 'We look forward to welcoming you for '.$this->appointment->service_names.'.',
             'icon' => 'check',
             'tone' => 'confirmed',
-            'url' => route('appointments.show', $this->appointment),
+            'url' => $this->detailsUrl(),
         ];
     }
 }

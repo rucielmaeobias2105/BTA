@@ -1,27 +1,65 @@
 @php
+    use App\Models\Appointment;
     use App\Support\Nav;
 
     $current = Nav::adminCurrent();
-    $admin = auth('admin')->user();
-    $pendingCount = \App\Models\Appointment::where('status', 'pending')->count();
+
+    /*
+     * Unseen bookings, which is not the same set as Pending ones.
+     *
+     * This was `where('status', 'pending')`, and that made the badge impossible to
+     * clear: it counted a status, so the only thing that could change the number
+     * was approving or declining each booking. An admin who opened the page, read
+     * every row and closed the tab saw the count unchanged, because reading is not
+     * deciding — so it sat there all day telling them something they already knew.
+     *
+     * The Appointments screen marks what it shows as seen, so opening it clears
+     * the badge, and a booking that arrives afterwards brings it back. Pending
+     * still means Pending; it just no longer doubles as "unread".
+     *
+     * Counted through the model so this, the tab title and the poll all ask the
+     * same question of the same rows.
+     */
+    $unseenAppointments = Appointment::unseenForAdminCount();
+
     $lowStockCount = \App\Models\InventoryItem::lowStock()->count();
 
+    // Contact messages are no longer on this nav. The unread-enquiry count
+    // lived only on that row, so with the row gone there is nothing here to
+    // count: `ContactMessage::query()->unread()->count()` was asked on every
+    // admin page render to badge a row that is no longer rendered. The Messages
+    // screen itself, its routes and its permission are untouched — it is still
+    // reachable by URL, it just is not advertised here.
     $groups = [
         'Main' => [
             ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'heroicon-o-squares-2x2', 'active' => 'dashboard', 'ability' => 'admin.dashboard.view'],
-            ['route' => 'admin.appointments.index', 'label' => 'Appointments', 'icon' => 'heroicon-o-calendar-days', 'active' => 'appointments', 'ability' => 'admin.appointments.manage', 'badge' => $pendingCount],
-            ['route' => 'admin.calendar.index', 'label' => 'Calendar', 'icon' => 'heroicon-o-calendar', 'active' => 'calendar', 'ability' => 'admin.calendar.view'],
+            ['route' => 'admin.appointments.index', 'label' => 'Appointments', 'icon' => 'heroicon-o-calendar-days', 'active' => 'appointments', 'ability' => 'admin.appointments.manage', 'badge' => $unseenAppointments, 'liveEvent' => 'admin-pending'],
+            // Its own row rather than only the pill on the Appointments toolbar.
+            // An archived booking is a different queue — settled, out of the
+            // working list, restorable in bulk — and burying it under a button on
+            // another screen is why the archive was easy to forget existed.
+            // `heroicon-o-archive-box` is taken by Inventory, so this uses the
+            // open box: filed away, but not locked.
+            ['route' => 'admin.appointments.archived', 'label' => 'Archived', 'icon' => 'heroicon-o-folder-open', 'active' => 'archived-appointments', 'ability' => 'admin.appointments.manage'],
         ],
         'Catalog' => [
-            ['route' => 'admin.catalog.index', 'label' => 'Services & Items', 'icon' => 'heroicon-o-sparkles', 'active' => 'catalog', 'ability' => 'admin.catalog.view'],
             ['route' => 'admin.services.index', 'label' => 'Services', 'icon' => 'heroicon-o-scissors', 'active' => 'services', 'ability' => 'admin.catalog.view'],
+            ['route' => 'admin.categories.index', 'label' => 'Categories', 'icon' => 'heroicon-o-swatch', 'active' => 'categories', 'ability' => 'admin.catalog.view'],
+            ['route' => 'admin.technicians.index', 'label' => 'Technicians', 'icon' => 'heroicon-o-user-group', 'active' => 'technicians', 'ability' => 'admin.technicians.view'],
             ['route' => 'admin.promos.index', 'label' => 'Promo', 'icon' => 'heroicon-o-megaphone', 'active' => 'promos', 'ability' => 'admin.promos.manage'],
         ],
         'Operations' => [
+            // `liveEvent` is what keeps the count current:
+            // `adminLiveNotifications` polls the feed and broadcasts the count to
+            // the row that shows it, so the badge cannot disagree with itself or
+            // with the tab title.
+            //
+            // This group used to hold a Messages row beside this one, badged with
+            // unread enquiries and bound to the `admin-messages` broadcast. That
+            // row is gone; what is left is a single badged count, and the two
+            // "what does my number mean" comments it was carrying with it.
             ['route' => 'admin.inventory.index', 'label' => 'Inventory', 'icon' => 'heroicon-o-archive-box', 'active' => 'inventory', 'ability' => 'admin.inventory.view', 'badge' => $lowStockCount, 'badgeStyle' => 'warning'],
-            ['route' => 'admin.tags.index', 'label' => 'Low-Stock Tags', 'icon' => 'heroicon-o-tag', 'active' => 'tags', 'ability' => 'admin.inventory.view'],
             ['route' => 'admin.users.index', 'label' => 'Registered Users', 'icon' => 'heroicon-o-users', 'active' => 'users', 'ability' => 'admin.users.view'],
-            ['route' => 'admin.reviews.index', 'label' => 'Reviews', 'icon' => 'heroicon-o-star', 'active' => 'reviews', 'ability' => 'admin.reviews.view'],
         ],
         'System' => [
             ['route' => 'admin.terms.index', 'label' => 'Terms & Conditions', 'icon' => 'heroicon-o-document-text', 'active' => 'terms', 'ability' => 'admin.terms.view'],
@@ -30,22 +68,41 @@
     ];
 @endphp
 
+{{--
+    Visibility is deliberately NOT driven by `x-show`. Alpine writes an inline
+    `display: none` when the expression is false, and an inline style outranks
+    every `lg:` utility, so a `x-show="sidebar"` on a `sidebar: false` wrapper
+    hid the panel at desktop width too — with the only trigger (the topbar
+    hamburger) itself `lg:hidden`, so it could never be reopened.
+
+    Instead the drawer state is a translate: `-translate-x-full` parks it
+    off-canvas below `lg`, and `lg:!translate-x-0` (important, so it beats the
+    bound class) pins it in flow from `lg` up. The bound open state is
+    `!translate-x-0` for the same reason, which keeps "closed" and "open"
+    mutually exclusive instead of relying on Tailwind's rule order.
+
+    From `lg` the panel is `sticky` at the top and exactly one viewport tall, so
+    the nav's own `overflow-y-auto` engages and only the links scroll — the brand
+    header and the profile/logout footer stay pinned. A static, auto-height
+    sidebar grows with the nav instead, which pushes the whole page down.
+--}}
 <aside
-    x-show="sidebar"
-    x-cloak
     x-transition:enter="transition ease-out duration-200"
     x-transition:enter-start="-translate-x-full"
     x-transition:enter-end="translate-x-0"
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="translate-x-0"
     x-transition:leave-end="-translate-x-full"
+    :class="sidebar ? '!translate-x-0' : '-translate-x-full'"
     @resize.window="if (window.innerWidth >= 1024) sidebar = false"
-    class="fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-line/70 bg-cream lg:static lg:!transform lg:translate-x-0"
+    class="admin-sidebar fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 -translate-x-full flex-col border-r border-line/70 bg-cream transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:!translate-x-0"
     aria-label="Admin navigation"
 >
     <div class="shrink-0 border-b border-line/70 px-4 py-4">
-        <x-brand.logo href="{{ route('admin.dashboard') }}" size="sm" />
-        <span class="ml-14 mt-2 inline-block rounded-pill bg-blush px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">Admin Panel</span>
+        {{-- The real logo asset, as the customer nav, the footer and the
+             sign-in panel all use. This was the one surface still falling back
+             to the "BtA" monogram, so the panel did not match the site. --}}
+        <x-brand.logo href="{{ route('admin.dashboard') }}" size="sm" image="images/logo.png" />
 
         <button type="button" @click="sidebar = false" class="absolute right-3 top-5 rounded-lg p-1.5 text-ink-muted hover:bg-linen lg:hidden" aria-label="Close navigation">
             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 18 18 6M6 6l12 12"/></svg>
@@ -61,52 +118,46 @@
             @endif
 
             @foreach ($visible as $link)
-                @php $isActive = $current === $link['active']; @endphp
+                @php
+                    $isActive = $current === $link['active'];
+                @endphp
                 <a
                     href="{{ route($link['route']) }}"
                     @class(['admin-nav-link', 'admin-nav-link-active' => $isActive])
                     @if ($isActive) aria-current="page" @endif
-                >
+                >{{-- The row's attributes stay contiguous, which is why the
+                      icon is emitted after the `href` line. --}}
                     <x-dynamic-component :component="$link['icon']" class="h-5 w-5 shrink-0" />
                     <span class="flex-1 truncate">{{ $link['label'] }}</span>
 
-                    @if (! empty($link['badge']))
-                        <span @class([
-                            'rounded-pill px-1.5 py-0.5 text-[10px] font-semibold',
-                            'bg-primary text-cream' => $isActive || ($link['badgeStyle'] ?? null) !== 'warning',
-                            'bg-status-low-stock-bg text-status-low-stock' => ! $isActive && ($link['badgeStyle'] ?? null) === 'warning',
-                        ])>{{ $link['badge'] }}</span>
-                    @endif
+                    {{-- The count styling itself lives in `x-ui.count-badge`,
+                         shared with the topbar bell. Which tone is a decision
+                         this row makes, not the badge: the warning fill is
+                         dropped while the link is the active one, because an
+                         amber badge on the row you are already on reads as a
+                         second thing needing attention.
+
+                         Appointments is the one live count. The topbar bell
+                         polls the same pending bookings and broadcasts them, so
+                         the sidebar follows from that one request rather than
+                         sitting there claiming a number the bell beside it has
+                         already watched change. The rest are rendered once, as
+                         before — nothing polls for them. --}}
+                    <x-ui.count-badge
+                        :count="$link['badge'] ?? null"
+                        :tone="! $isActive && ($link['badgeStyle'] ?? null) === 'warning' ? 'warning' : 'default'"
+                        :live-event="$link['liveEvent'] ?? null"
+                    />
                 </a>
             @endforeach
         @endforeach
     </nav>
 
-    <div class="shrink-0 space-y-2 border-t border-line/70 p-3">
-        <a href="{{ route('admin.profile.edit') }}" class="flex items-center gap-3 rounded-xl bg-linen px-3 py-2.5 transition hover:bg-blush">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blush text-sm font-bold text-primary">
-                {{ Str::upper(Str::substr($admin->first_name, 0, 1).Str::substr($admin->last_name, 0, 1)) }}
-            </span>
-            <span class="min-w-0">
-                <span class="flex items-center gap-1.5">
-                    <span class="truncate text-sm font-semibold text-ink">{{ $admin->full_name }}</span>
-                    <span class="badge badge-gold shrink-0">{{ $admin->role->label() }}</span>
-                </span>
-                <span class="block truncate text-xs text-ink-muted">{{ $admin->email }}</span>
-            </span>
-        </a>
-
-        <a href="{{ route('home') }}" target="_blank" rel="noopener" class="admin-nav-link">
-            <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
-            <span class="flex-1">View Site</span>
-        </a>
-
-        <form method="POST" action="{{ route('admin.logout') }}">
-            @csrf
-            <button type="submit" class="admin-nav-link w-full text-status-cancelled hover:bg-status-cancelled-bg/50 hover:text-status-cancelled">
-                <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/></svg>
-                <span>Logout</span>
-            </button>
-        </form>
-    </div>
+    {{--
+        The footer that used to live here is gone entirely: the identity block
+        (avatar initials, name, role badge, email), then the "View Site" link,
+        then the Logout button. Nothing is left pinned below the nav, so the
+        links own the full height of the panel. Logging out and editing the
+        profile both live in the top bar dropdown.
+    --}}
 </aside>

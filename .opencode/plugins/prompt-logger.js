@@ -9,6 +9,31 @@ const MARKDOWN_HEADER = "# Prompt Log"
 /** Guards against the same prompt being written twice (retries, permission re-asks). */
 const seen = new Set()
 
+/**
+ * These logs are committed to git, so a pasted password must never reach disk.
+ * A line is only treated as secret-bearing when it mentions a secret-ish word,
+ * which keeps ordinary prose intact while over-redacting real secrets.
+ */
+const SECRET_WORDS =
+  /password|passwd|app\s*password|api[\s_-]?key|secret|token|credential|private[\s_-]?key|smtp/i
+
+function redactLine(line) {
+  if (!SECRET_WORDS.test(line)) return line
+
+  return line
+    .replace(/(["'])(?:(?!\1).)*\1/g, "[REDACTED]")
+    .replace(/\b(?:[a-z0-9]{4}[ \t]+){3}[a-z0-9]{4}\b/gi, "[REDACTED-APP-PASSWORD]")
+    .replace(/\b[A-Za-z0-9_+=/-]{20,}\b/g, "[REDACTED-TOKEN]")
+}
+
+function redact(text) {
+  if (!text) return text
+  return String(text)
+    .split("\n")
+    .map(redactLine)
+    .join("\n")
+}
+
 function stamp(date) {
   const p = (n) => String(n).padStart(2, "0")
   return (
@@ -76,7 +101,7 @@ export const PromptLoggerPlugin = async ({ directory, worktree }) => {
   return {
     "chat.message": async (input, output) => {
       try {
-        const text = extractText(output?.parts)
+        const text = redact(extractText(output?.parts))
         const attachments = extractAttachments(output?.parts)
 
         if (!text && attachments.length === 0) return

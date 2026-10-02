@@ -252,6 +252,11 @@ function Start-AppServer {
 if (Test-Path -LiteralPath $stopFile) { Remove-Item -LiteralPath $stopFile -Force }
 Set-Content -LiteralPath $pidFile -Value $PID -Encoding ASCII
 
+# A ready marker from a previous run is not evidence about this run. It is only
+# written again after a successful HTTP check below, and dev-up.bat clears it
+# before it waits, so a stale one can never be mistaken for a live site.
+Remove-Item -LiteralPath $readyFile -Force -ErrorAction SilentlyContinue
+
 Write-Log "Supervisor started (PID $PID), watching http://localhost:$Port"
 
 $dbPort = [int](Get-EnvValue -Key 'DB_PORT' -Default '3306')
@@ -310,41 +315,44 @@ while ($true) {
         continue
     }
 
-    # The first request after a boot compiles every view and config, so it can
-    # take the best part of a minute. Never judge - or restart - the server
-    # until it has answered once.
-    if ($serverHasAnswered -or ((Get-Date) - $serverStartedAt).TotalSeconds -ge 120) {
-        if (Test-Http -Url ("http://127.0.0.1:{0}/" -f $Port)) {
+    # Probing starts immediately so the ready marker and the health state stay
+    # truthful. The boot grace period only gates *restarts*: the first request
+    # after a boot compiles every view and config, so it can take the best part
+    # of a minute, and judging the server on that would kill a healthy boot.
+    $bootGraceOver = ((Get-Date) - $serverStartedAt).TotalSeconds -ge 120
+
+    if (Test-Http -Url ("http://127.0.0.1:{0}/" -f $Port)) {
+        $healthFailures = 0
+        $serverHasAnswered = $true
+
+        # dev-up.bat waits for this file, so it only opens the browser once
+        # the site really answers.
+        if (-not (Test-Path -LiteralPath $readyFile)) {
+            Set-Content -LiteralPath $readyFile -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding ASCII
+            Write-Log "http://localhost:$Port is answering - ready."
+        }
+    } else {
+        $healthFailures++
+
+        if ($healthFailures -ge 2 -and ($serverHasAnswered -or $bootGraceOver)) {
+            # A wedged request blocks PHP's single-threaded dev server, so
+            # every later request - including Firefox's - just hangs.
+            if (-not (Test-MySql -DbPort $dbPort -User $dbUser -Password $dbPassword)) {
+                Write-Log 'The app is not answering and MySQL is down - restarting MySQL only.'
+                $null = Start-MySql -DbPort $dbPort
+            } else {
+                Write-Log 'The app did not answer twice in a row - restarting the dev server.'
+                Remove-Item -LiteralPath $readyFile -Force -ErrorAction SilentlyContinue
+                Stop-StaleAppServers -TargetPort $Port
+                Start-AppServer
+                $serverStartedAt = Get-Date
+                $serverHasAnswered = $false
+            }
+
             $healthFailures = 0
-            $serverHasAnswered = $true
-
-            # dev-up.bat waits for this file, so it only opens the browser once
-            # the site really answers.
-            if (-not (Test-Path -LiteralPath $readyFile)) {
-                Set-Content -LiteralPath $readyFile -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding ASCII
-                Write-Log "http://localhost:$Port is answering - ready."
-            }
-        } else {
-            $healthFailures++
-
-            if ($healthFailures -ge 2) {
-                # A wedged request blocks PHP's single-threaded dev server, so
-                # every later request - including Firefox's - just hangs.
-                if (-not (Test-MySql -DbPort $dbPort -User $dbUser -Password $dbPassword)) {
-                    Write-Log 'The app is not answering and MySQL is down - restarting MySQL only.'
-                    $null = Start-MySql -DbPort $dbPort
-                } else {
-                    Write-Log 'The app did not answer twice in a row - restarting the dev server.'
-                    Remove-Item -LiteralPath $readyFile -Force -ErrorAction SilentlyContinue
-                    Stop-StaleAppServers -TargetPort $Port
-                    Start-AppServer
-                    $serverStartedAt = Get-Date
-                    $serverHasAnswered = $false
-                }
-
-                $healthFailures = 0
-                Start-Sleep -Seconds $CheckSeconds
-            }
+            Start-Sleep -Seconds $CheckSeconds
+        } elseif ($healthFailures -eq 2) {
+            Write-Log 'The app is not answering yet, but it is still inside the boot grace period - not restarting.'
         }
     }
 

@@ -4,168 +4,164 @@
 @section('heading', 'Inventory Management')
 
 @section('content')
-    <x-ui.page-header
-        eyebrow="Stock"
-        title="Inventory Items"
-        description="Track stock levels, reorder thresholds and which services consume each item."
+    @php
+        // The Actions column is capability-gated, so the empty rows have to
+        // span whatever the admin who is looking actually gets. The Category
+        // column is gone, which took this down from 6/5 to 5/4.
+        $canManage = auth('admin')->user()?->can('admin.inventory.manage');
+        $columns = $canManage ? 5 : 4;
+    @endphp
+
+    {{-- The export carries the search box, so the file is the list the admin is
+         looking at rather than the whole catalogue. It has no date filter, unlike
+         the sales export: quantity is overwritten on every booking rather than
+         versioned, so there is no "stock as it was on" reading for a date range
+         to select. --}}
+    <x-ui.admin-table
+        add-label="Add Item"
+        :add-href="$canManage ? route('admin.inventory.create') : null"
+        :search="$search"
     >
+        {{-- The `actions` slot rather than `header`: the add button stays, and the
+         export joins it on the same row. The link carries the search box, so the
+         file is the list the admin is looking at rather than the whole
+         catalogue.
+
+         There is deliberately no date filter on it, unlike the sales export:
+         quantity is overwritten on every booking rather than versioned, so there
+         is no "stock as it was on" reading for a range to select. A filter that
+         cannot change the answer is worse than no filter. --}}
         <x-slot:actions>
-            <a href="{{ route('admin.tags.index') }}" class="btn-gold btn-sm">
-                @if ($lowStockCount > 0)
-                    <span class="rounded-pill bg-primary px-1.5 py-0.5 text-[10px] text-cream">{{ $lowStockCount }}</span>
-                @endif
-                Low-Stock Tags
+            <a href="{{ route('admin.inventory.export', array_filter(['search' => $search])) }}" class="btn-secondary btn-sm">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                Export Inventory CSV
             </a>
-            @can('admin.inventory.manage')
-                <a href="{{ route('admin.inventory.create') }}" class="btn-primary btn-sm">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                    Add Item
-                </a>
-            @endcan
         </x-slot:actions>
-    </x-ui.page-header>
+        <table class="bta-table">
+            <thead>
+                <tr>
+                    <x-ui.sortable-th column="name" label="Item" :sort="$sort" :direction="$direction" :action="route('admin.inventory.index')" :params="['search' => $search]" />
+                    <x-ui.sortable-th column="quantity" label="Quantity" :sort="$sort" :direction="$direction" :action="route('admin.inventory.index')" :params="['search' => $search]" align="right" />
+                    <x-ui.sortable-th column="status_tag" label="Tag" :sort="$sort" :direction="$direction" :action="route('admin.inventory.index')" :params="['search' => $search]" />
+                    <x-ui.sortable-th column="expiry_date" label="Expiry" :sort="$sort" :direction="$direction" :action="route('admin.inventory.index')" :params="['search' => $search]" />
+                    @can('admin.inventory.manage')
+                        <th class="text-right">Actions</th>
+                    @endcan
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($items as $item)
+                    <tr data-row x-show="isShown({{ $loop->index }})">
+                        <td>
+                            <p class="font-medium text-primary">{{ $item->name }}</p>
+                            <p class="font-mono text-xs text-ink-muted">{{ $item->sku }}</p>
+                        </td>
+                        <td class="whitespace-nowrap text-right">
+                            <span @class([
+                                'font-semibold',
+                                'text-status-sold-out' => $item->isSoldOut(),
+                                'text-status-low-stock' => $item->isLowOnStock() && ! $item->isSoldOut(),
+                                'text-primary' => ! $item->isLowOnStock(),
+                            ])>{{ $item->stock_label }}</span>
+                        </td>
+                        <td><x-ui.badge :status="$item->status_tag->badge()" :label="$item->status_tag->label()" /></td>
+                        <td class="whitespace-nowrap text-ink">{{ $item->expiry_date?->format('M j, Y') ?? '—' }}</td>
+                        @can('admin.inventory.manage')
+                            <td>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <x-ui.icon-action
+                                        label="Edit {{ $item->name }}"
+                                        icon="heroicon-o-pencil-square"
+                                        tone="primary"
+                                        :href="route('admin.inventory.edit', $item)"
+                                    />
 
-    <div class="mb-5 grid gap-4 sm:grid-cols-3">
-        <div class="bta-card flex items-center gap-4 p-4">
-            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-status-low-stock-bg text-status-low-stock">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z"/></svg>
-            </span>
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-ink-muted">Low Stock</p>
-                <p class="font-display text-2xl font-bold text-primary">{{ $lowStockCount }}</p>
-            </div>
-        </div>
+                                    {{-- The row carries no form of its own. Clicking
+                                         opens the confirmation dialog further down,
+                                         which holds the single real form and posts
+                                         to the URL the row hands it. --}}
+                                    <button
+                                        type="button"
+                                        class="icon-action icon-action-danger"
+                                        title="Delete {{ $item->name }}"
+                                        aria-label="Delete {{ $item->name }}"
+                                        @click="$dispatch('confirm-inventory-delete', {
+                                            label: @js($item->name),
+                                            action: @js(route('admin.inventory.destroy', $item)),
+                                        })"
+                                    >
+                                        <x-heroicon-o-trash class="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </td>
+                        @endcan
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="{{ $columns }}" class="py-12 text-center text-sm text-ink-muted">
+                            No items yet. Use “Add Item” to add what the salon actually holds.
+                        </td>
+                    </tr>
+                @endforelse
 
-        <div class="bta-card flex items-center gap-4 p-4">
-            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-status-sold-out-bg text-status-sold-out">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m18.36 5.64-12.72 12.72M6.34 5.64l12.72 12.72"/></svg>
-            </span>
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-ink-muted">Sold Out</p>
-                <p class="font-display text-2xl font-bold text-primary">{{ $soldOutCount }}</p>
-            </div>
-        </div>
-
-        <div class="bta-card flex items-center gap-4 p-4">
-            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></svg>
-            </span>
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-ink-muted">Total Items</p>
-                <p class="font-display text-2xl font-bold text-primary">{{ $items->total() }}</p>
-            </div>
-        </div>
-    </div>
-
-    <form method="GET" action="{{ route('admin.inventory.index') }}" class="bta-card mb-6 p-5">
-        <div class="grid gap-4 md:grid-cols-12">
-            <div class="md:col-span-4">
-                <x-ui.form.input name="search" label="Search" placeholder="Name, SKU or supplier" :value="$filters['search'] ?? null" />
-            </div>
-            <div class="md:col-span-3">
-                <x-ui.form.select
-                    name="category"
-                    label="Category"
-                    :includeBlank="true"
-                    blankLabel="All Categories"
-                    :value="$filters['category'] ?? null"
-                    :options="$categories->mapWithKeys(fn ($c) => [$c => $c])->all()"
-                />
-            </div>
-            <div class="md:col-span-3">
-                <x-ui.form.select
-                    name="tag"
-                    label="Status Tag"
-                    :includeBlank="true"
-                    blankLabel="All Tags"
-                    :value="$filters['tag'] ?? null"
-                    :options="$tagOptions"
-                />
-            </div>
-            <div class="flex items-end gap-2 md:col-span-2">
-                <button type="submit" class="btn-primary flex-1">Filter</button>
-                @if (array_filter($filters))
-                    <a href="{{ route('admin.inventory.index') }}" class="btn-ghost">Clear</a>
+                {{-- Shown when the search box has filtered every row away. --}}
+                @if ($items->isNotEmpty())
+                    <tr x-show="total === 0" x-cloak>
+                        <td colspan="{{ $columns }}" class="py-12 text-center text-sm text-ink-muted">No data available</td>
+                    </tr>
                 @endif
-            </div>
-        </div>
-    </form>
-
-    @if ($items->isEmpty())
-        <x-ui.empty title="No items found" description="Add your first inventory item to get started.">
-            <x-slot:action>
-                @can('admin.inventory.manage')
-                    <a href="{{ route('admin.inventory.create') }}" class="btn-primary">Add Item</a>
-                @endcan
-            </x-slot:action>
-        </x-ui.empty>
-    @else
-        <div class="bta-card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="bta-table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th class="text-right">Quantity</th>
-                            <th class="text-right">Reorder At</th>
-                            <th>Supplier</th>
-                            <th>Tag</th>
-                            <th>Linked Services</th>
-                            @can('admin.inventory.manage')
-                                <th class="text-right">Actions</th>
-                            @endcan
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($items as $item)
-                            <tr @class(['bg-status-low-stock-bg/25' => $item->isLowOnStock()])>
-                                <td>
-                                    <p class="font-medium text-primary">{{ $item->name }}</p>
-                                    <p class="font-mono text-xs text-ink-muted">{{ $item->sku }}</p>
-                                </td>
-                                <td class="whitespace-nowrap"><span class="badge badge-gold">{{ $item->category }}</span></td>
-                                <td class="whitespace-nowrap text-right">
-                                    <span @class([
-                                        'font-semibold',
-                                        'text-status-sold-out' => $item->isSoldOut(),
-                                        'text-status-low-stock' => $item->isLowOnStock() && ! $item->isSoldOut(),
-                                        'text-primary' => ! $item->isLowOnStock(),
-                                    ])>{{ $item->stock_label }}</span>
-                                    @if ($item->hasManualOverride())
-                                        <span class="block text-[10px] italic text-ink-muted">manual override</span>
-                                    @endif
-                                </td>
-                                <td class="whitespace-nowrap text-right text-ink">{{ $item->reorder_threshold }} {{ $item->unit }}</td>
-                                <td class="text-ink">{{ $item->supplier ?: '—' }}</td>
-                                <td><x-ui.badge :status="$item->status_tag->badge()" :label="$item->status_tag->label()" /></td>
-                                <td>
-                                    @if ($item->services_count > 0)
-                                        <span class="text-sm text-ink">{{ $item->services_count }} service{{ $item->services_count === 1 ? '' : 's' }}</span>
-                                    @else
-                                        <span class="text-sm text-ink-muted">—</span>
-                                    @endif
-                                </td>
-                                @can('admin.inventory.manage')
-                                    <td>
-                                        <div class="flex justify-end gap-1.5">
-                                            <a href="{{ route('admin.inventory.edit', $item) }}" class="btn-secondary btn-sm">Edit</a>
-                                            <form method="POST" action="{{ route('admin.inventory.destroy', $item) }}"
-                                                  onsubmit="return confirm('Delete “{{ $item->name }}”?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                @endcan
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="mt-6">{{ $items->links() }}</div>
-    @endif
+            </tbody>
+        </table>
+    </x-ui.admin-table>
 @endsection
+
+@push('modals')
+    @can('admin.inventory.manage')
+        {{--
+            Delete an item. One dialog, one real form, and the row decides which
+            item it is about — the same arrangement as the calendar's "Mark Date
+            as Available", so a destructive action in this panel always looks
+            and behaves the same way.
+        --}}
+        <div
+            x-data="{ open: false, label: '', action: '' }"
+            x-show="open"
+            x-cloak
+            @confirm-inventory-delete.window="label = $event.detail.label; action = $event.detail.action; open = true"
+            @keydown.escape.window="open = false"
+            class="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto p-4 sm:items-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-item-title"
+        >
+            <div class="modal-backdrop fixed inset-0" @click="open = false" aria-hidden="true"></div>
+
+            <div @click.stop class="modal-panel max-w-md">
+                <form method="POST" :action="action">
+                    @csrf
+                    @method('DELETE')
+
+                    <div class="flex items-start justify-between gap-4 border-b border-line/70 px-5 py-4">
+                        <h2 id="delete-item-title" class="font-display text-lg font-semibold text-primary">
+                            Delete Item
+                        </h2>
+                        <button type="button" @click="open = false" class="btn-ghost btn-sm" aria-label="Close">&times;</button>
+                    </div>
+
+                    <div class="px-5 py-5">
+                        <p class="text-sm leading-relaxed text-ink">
+                            Are you sure you want to delete
+                            <span class="font-semibold text-primary" x-text="label"></span>?
+                            It will be removed from the stockroom and will no longer be counted.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2 border-t border-line/70 bg-linen/50 px-5 py-4">
+                        <button type="button" class="btn-ghost" @click="open = false">Cancel</button>
+                        <button type="submit" class="btn-danger">Delete Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
+@endpush

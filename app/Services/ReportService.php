@@ -4,10 +4,10 @@ namespace App\Services;
 
 use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
+use App\Models\ContactMessage;
 use App\Models\InventoryItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Read-only aggregation used by the admin dashboard and the Sales/Usage
@@ -36,14 +36,15 @@ class ReportService
                 ->whereDate('preferred_date', $today)
                 ->whereNotIn('status', [AppointmentStatus::Cancelled->value])
                 ->count(),
-            'pending_appointments' => Appointment::query()
-                ->where('status', AppointmentStatus::Pending)
-                ->count(),
             'completed_month' => Appointment::query()
                 ->where('status', AppointmentStatus::Completed)
                 ->whereBetween('preferred_date', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])
                 ->count(),
-            'low_stock_count' => InventoryItem::query()->lowStock()->count(),
+            // `low_stock_count` used to be here, for the dashboard's Low Stock
+            // Alerts card. The card is gone, and nothing else reads the key, so
+            // the query went with it rather than being left running on every
+            // dashboard load. The sidebar still badges Inventory with its own
+            // count, so the alert itself is not gone — only this duplicate.
             'sold_out_count' => InventoryItem::query()->where('status_tag', 'sold_out')->count(),
             'revenue_month' => (float) Appointment::query()
                 ->whereIn('status', self::REVENUE_STATUSES)
@@ -53,7 +54,7 @@ class ReportService
                 ->whereIn('status', self::REVENUE_STATUSES)
                 ->whereDate('preferred_date', $today)
                 ->sum('total_amount'),
-            'unread_messages' => \App\Models\ContactMessage::query()->unread()->count(),
+            'unread_messages' => ContactMessage::query()->unread()->count(),
         ];
     }
 
@@ -112,77 +113,26 @@ class ReportService
     }
 
     /**
-     * Revenue per service over a date range.
-     *
-     * @return \Illuminate\Support\Collection<int, array{service: string, bookings: int, quantity: int, revenue: float}>
-     */
-    public function revenueByService(Carbon|string $from, Carbon|string $to, ?int $serviceId = null): Collection
-    {
-        return DB::table('appointment_service')
-            ->join('appointments', 'appointments.id', '=', 'appointment_service.appointment_id')
-            ->whereNull('appointments.deleted_at')
-            ->whereIn('appointments.status', self::REVENUE_STATUSES)
-            ->whereBetween('appointments.preferred_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])
-            ->when($serviceId, fn ($q) => $q->where('appointment_service.service_id', $serviceId))
-            ->groupBy('appointment_service.service_name')
-            ->selectRaw('appointment_service.service_name as service,
-                         COUNT(*) as bookings,
-                         SUM(appointment_service.quantity) as quantity,
-                         SUM(appointment_service.price * appointment_service.quantity) as revenue')
-            ->orderByDesc('revenue')
-            ->get()
-            ->map(fn ($row) => [
-                'service' => $row->service,
-                'bookings' => (int) $row->bookings,
-                'quantity' => (int) $row->quantity,
-                'revenue' => (float) $row->revenue,
-            ]);
-    }
-
-    /**
-     * Item consumption implied by bookings (quantity_per_service x bookings).
-     *
-     * @return \Illuminate\Support\Collection<int, array{item: string, unit: string, used: float, remaining: float}>
-     */
-    public function itemUsage(Carbon|string $from, Carbon|string $to, ?int $itemId = null): Collection
-    {
-        return DB::table('appointments')
-            ->join('appointment_service', 'appointment_service.appointment_id', '=', 'appointments.id')
-            ->join('services', 'services.id', '=', 'appointment_service.service_id')
-            ->join('service_inventory', 'service_inventory.service_id', '=', 'services.id')
-            ->join('inventory_items', 'inventory_items.id', '=', 'service_inventory.inventory_item_id')
-            ->whereNull('appointments.deleted_at')
-            ->whereIn('appointments.status', self::REVENUE_STATUSES)
-            ->whereBetween('appointments.preferred_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])
-            ->when($itemId, fn ($q) => $q->where('inventory_items.id', $itemId))
-            ->groupBy('inventory_items.id', 'inventory_items.name', 'inventory_items.unit', 'inventory_items.quantity')
-            ->selectRaw('inventory_items.name as item,
-                         inventory_items.unit as unit,
-                         inventory_items.quantity as remaining,
-                         SUM(service_inventory.quantity_per_service * appointment_service.quantity) as used')
-            ->orderByDesc('used')
-            ->get()
-            ->map(fn ($row) => [
-                'item' => $row->item,
-                'unit' => $row->unit,
-                'used' => (float) $row->used,
-                'remaining' => (float) $row->remaining,
-            ]);
-    }
-
-    /**
      * Bucketed revenue for a report granularity.
      *
      * Bucketing happens in PHP rather than SQL so the same code path works on
-     * MySQL and on the SQLite connection used by the test suite.
+     * MySQL and on the SQLite connection used by the test suite. `services` is
+     * the number of service lines booked in the bucket, which is what the
+     * Reports screen's third headline card counts.
      *
-     * @return \Illuminate\Support\Collection<int, array{period: string, label: string, revenue: float, bookings: int}>
+     * @return Collection<int, array{period: string, label: string, revenue: float, bookings: int, services: int}>
      */
     public function totalsByPeriod(string $granularity, Carbon $from, Carbon $to): Collection
     {
         $appointments = Appointment::query()
+            // The range is compared as dates rather than as a between-range: the
+            // column is a DATE on MySQL but a datetime on the SQLite connection
+            // the tests run against, and a string range that stops at midnight
+            // silently drops everything after it there.
             ->whereIn('status', self::REVENUE_STATUSES)
-            ->whereBetween('preferred_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('preferred_date', '>=', $from->toDateString())
+            ->whereDate('preferred_date', '<=', $to->toDateString())
+            ->withSum('serviceLines', 'quantity')
             ->orderBy('preferred_date')
             ->get(['preferred_date', 'total_amount']);
 
@@ -193,6 +143,7 @@ class ReportService
 
             $buckets[$key]['revenue'] = ($buckets[$key]['revenue'] ?? 0) + (float) $appointment->total_amount;
             $buckets[$key]['bookings'] = ($buckets[$key]['bookings'] ?? 0) + 1;
+            $buckets[$key]['services'] = ($buckets[$key]['services'] ?? 0) + (int) $appointment->service_lines_sum_quantity;
             $buckets[$key]['date'] = $buckets[$key]['date'] ?? $appointment->preferred_date;
         }
 
@@ -203,6 +154,7 @@ class ReportService
             'label' => $this->periodLabel($granularity, $bucket['date']),
             'revenue' => (float) $bucket['revenue'],
             'bookings' => (int) $bucket['bookings'],
+            'services' => (int) $bucket['services'],
         ])->values();
     }
 
@@ -211,7 +163,6 @@ class ReportService
         return match ($granularity) {
             'weekly' => $date->copy()->startOfWeek()->toDateString(),
             'monthly' => $date->format('Y-m'),
-            'annual' => $date->format('Y'),
             default => $date->toDateString(),
         };
     }
@@ -221,31 +172,74 @@ class ReportService
         return match ($granularity) {
             'weekly' => 'Week of '.$date->copy()->startOfWeek()->format('M j, Y'),
             'monthly' => $date->format('F Y'),
-            'annual' => (string) $date->format('Y'),
             default => $date->format('M j, Y'),
         };
     }
 
     /**
-     * Applies a report granularity to a date range.
+     * The date range for a report, from whatever the admin typed.
+     *
+     * Two inputs, and only two. The granularity parameter this used to take is
+     * gone: it only ever chose how the rows were grouped, and choosing it in the
+     * UI let it contradict the range — "Monthly" over three days produced one
+     * bucket and read as a whole month. `granularityFor()` derives the grouping
+     * from the range instead.
+     *
+     * With nothing typed, the window is the last 30 days. That is the longest span
+     * that is still one readable bucket-per-month, so it is the range where the
+     * derived grouping and the summary agree.
+     *
+     * A start after the end is swapped rather than rejected — an admin who picks
+     * the dates in the wrong order gets the report for the range they meant
+     * instead of an error telling them to retype two fields.
      *
      * @return array{from: Carbon, to: Carbon}
      */
-    public function resolveRange(?string $from, ?string $to, string $type): array
+    public function resolveRange(?string $from, ?string $to): array
     {
         $toDate = $to ? Carbon::parse($to) : today();
-        $fromDate = $from ? Carbon::parse($from) : match ($type) {
-            'daily' => $toDate->copy()->subDays(6),
-            'weekly' => $toDate->copy()->subWeeks(3),
-            'monthly' => $toDate->copy()->subMonths(5)->startOfMonth(),
-            'annual' => $toDate->copy()->subYears(2)->startOfYear(),
-            default => $toDate->copy()->subDays(6),
-        };
+        $fromDate = $from ? Carbon::parse($from) : $toDate->copy()->subDays(29);
 
         if ($fromDate->gt($toDate)) {
             [$fromDate, $toDate] = [$toDate, $fromDate];
         }
 
         return ['from' => $fromDate->startOfDay(), 'to' => $toDate->endOfDay()];
+    }
+
+    /**
+     * How to bucket a range's rows.
+     *
+     * Derived rather than chosen, so the grouping cannot disagree with the range
+     * the admin asked for. The thresholds are about readability rather than
+     * arithmetic: past roughly two months of daily buckets a table is a wall of
+     * near-identical rows nobody reads, and past roughly a year of weekly ones
+     * there is a row for every week of the business.
+     *
+     * @return string one of daily|weekly|monthly
+     */
+    public function granularityFor(Carbon $from, Carbon $to): string
+    {
+        $days = $from->diffInDays($to) + 1;
+
+        return match (true) {
+            $days <= 62 => 'daily',
+            $days <= 400 => 'weekly',
+            default => 'monthly',
+        };
+    }
+
+    /**
+     * Display names for the groupings, kept beside the ones that produce them.
+     *
+     * @return array<string, string>
+     */
+    public static function granularityLabels(): array
+    {
+        return [
+            'daily' => 'Day',
+            'weekly' => 'Week',
+            'monthly' => 'Month',
+        ];
     }
 }

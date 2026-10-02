@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ServiceRequest;
 use App\Models\Service;
+use App\Models\ServiceCategory;
 use App\Models\ServiceVariant;
+use App\Support\DataTable;
+use App\Support\PriceFormatter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -18,22 +21,52 @@ use Illuminate\View\View;
  */
 class ServiceController extends Controller
 {
+    /** Columns the list lets an admin sort by.
+     *
+     * `base_price` rather than `price`: price is the advertised string, so
+     * ordering by it would be a lexical sort that puts "100+" ahead of "50+".
+     */
+    private const SORTABLE = ['name', 'category', 'base_price', 'is_active', 'created_at'];
+
+    /**
+     * A pasted price arrives with spaces around it, and a hand-built request
+     * arrives as an int rather than the string a form posts. Normalising before
+     * validating keeps the strict `string` rule about the value, not the
+     * transport.
+     */
+    private function normaliseVariantPrice(Request $request): void
+    {
+        if ($request->has('price')) {
+            $request->merge(['price' => trim((string) $request->input('price'))]);
+        }
+    }
+
     public function index(Request $request): View
     {
-        $services = Service::query()
-            ->with('variants')
-            ->withCount(['inventoryItems', 'appointments'])
-            ->search($request->input('search'))
-            ->category($request->input('category'))
-            ->orderBy('category')
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
+        [$sort, $direction] = DataTable::sort($request, self::SORTABLE, 'name');
+
+        // The whole row set is rendered and the browser filters and pages it
+        // live, so a search is not a round trip per keystroke. `search` is only
+        // read back out to seed the search box.
+        $services = DataTable::applySort(
+            Service::query(),
+            $sort,
+            $direction,
+            self::SORTABLE,
+            'name',
+        )
+            // Name is a tiebreaker so rows with the same value keep a stable
+            // order between requests. Applied only when it is not the sort
+            // itself: appended unconditionally it becomes the primary key and
+            // the chosen sort never takes effect.
+            ->when($sort !== 'name', fn (Builder $query) => $query->orderBy('name'))
+            ->get();
 
         return view('admin.services.index', [
             'services' => $services,
-            'categories' => Service::query()->distinct()->orderBy('category')->pluck('category'),
-            'filters' => $request->only(['search', 'category']),
+            'search' => $request->input('search'),
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 
@@ -41,64 +74,43 @@ class ServiceController extends Controller
     {
         return view('admin.services.create', [
             'service' => new Service,
-            'categories' => $this->categorySuggestions(),
+            'categories' => ServiceCategory::active(),
         ]);
     }
 
     public function store(ServiceRequest $request): RedirectResponse
     {
-        $service = DB::transaction(function () use ($request) {
-            $data = $request->safe()->except(['photo', 'variants']);
-
-            $data['is_active'] = $request->boolean('is_active');
-            $data['is_featured'] = $request->boolean('is_featured');
-
-            if ($request->hasFile('photo')) {
-                $data['photo_path'] = $request->file('photo')->store('service-photos', 'public');
-            }
-
-            $service = Service::create($data);
-
-            $this->syncVariants($service, $request->input('variants', []));
-
-            return $service;
-        });
+        $service = Service::create([
+            ...$request->safe()->all(),
+            'is_active' => $request->boolean('is_active'),
+        ]);
 
         return redirect()
             ->route('admin.services.index')
-            ->with('status', "Service \"{$service->name}\" created.");
+            ->with('status', "Service \"{$service->name}\" Added.");
     }
 
     public function edit(Service $service): View
     {
-        $service->load('variants');
-
         return view('admin.services.edit', [
             'service' => $service,
-            'categories' => $this->categorySuggestions(),
+            // A category the admin has since switched off is no longer offered,
+            // but this service is still filed under it — so it stays selectable
+            // here rather than making the service unsaveable.
+            'categories' => ServiceCategory::active()
+                ->push($service->serviceCategory ?? new ServiceCategory(['name' => $service->category]))
+                ->unique('name')
+                ->sortBy([['sort_order', 'asc'], ['name', 'asc']])
+                ->values(),
         ]);
     }
 
     public function update(ServiceRequest $request, Service $service): RedirectResponse
     {
-        DB::transaction(function () use ($request, $service) {
-            $data = $request->safe()->except(['photo', 'variants']);
-
-            $data['is_active'] = $request->boolean('is_active');
-            $data['is_featured'] = $request->boolean('is_featured');
-
-            if ($request->hasFile('photo')) {
-                if ($service->photo_path) {
-                    Storage::disk('public')->delete($service->photo_path);
-                }
-
-                $data['photo_path'] = $request->file('photo')->store('service-photos', 'public');
-            }
-
-            $service->update($data);
-
-            $this->syncVariants($service, $request->input('variants', []));
-        });
+        $service->update([
+            ...$request->safe()->all(),
+            'is_active' => $request->boolean('is_active'),
+        ]);
 
         return redirect()
             ->route('admin.services.index')
@@ -118,8 +130,24 @@ class ServiceController extends Controller
             ->with('status', "Service \"{$name}\" deleted.");
     }
 
+    /**
+     * Flip a service between available and hidden from the list.
+     *
+     * A dedicated endpoint so the switch in the Available column is one request
+     * with no optimistic UI: whatever the row shows after the redirect is the
+     * truth.
+     */
+    public function toggleAvailability(Service $service): RedirectResponse
+    {
+        $service->update(['is_active' => ! $service->is_active]);
+
+        return back()->with('status', $service->is_active
+            ? "\"{$service->name}\" is now available."
+            : "\"{$service->name}\" is now hidden.");
+    }
+
     /* ------------------------------------------------------------------ */
-    /* Variants                                                           */
+    /* Variants */
     /* ------------------------------------------------------------------ */
 
     public function variants(Service $service): View
@@ -133,9 +161,11 @@ class ServiceController extends Controller
 
     public function storeVariant(Request $request, Service $service): RedirectResponse
     {
+        $this->normaliseVariantPrice($request);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('service_variants', 'name')->where('service_id', $service->id)],
-            'price' => ['required', 'numeric', 'min:0', 'max:999999'],
+            'price' => PriceFormatter::rules(),
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'is_default' => ['nullable', 'boolean'],
         ]);
@@ -158,10 +188,12 @@ class ServiceController extends Controller
 
     public function updateVariant(Request $request, ServiceVariant $variant): RedirectResponse
     {
+        $this->normaliseVariantPrice($request);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('service_variants', 'name')
                 ->where('service_id', $variant->service_id)->ignore($variant->id)],
-            'price' => ['required', 'numeric', 'min:0', 'max:999999'],
+            'price' => PriceFormatter::rules(),
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'is_default' => ['nullable', 'boolean'],
         ]);
@@ -191,68 +223,6 @@ class ServiceController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Helpers                                                            */
+    /* Helpers */
     /* ------------------------------------------------------------------ */
-
-    /**
-     * Create/update/remove the variant rows submitted with the service form.
-     *
-     * @param  array<int, array<string, mixed>>  $variants
-     */
-    protected function syncVariants(Service $service, array $variants): void
-    {
-        $keepIds = [];
-
-        foreach ($variants as $row) {
-            if (blank($row['name'] ?? null)) {
-                continue;
-            }
-
-            $attributes = [
-                'name' => $row['name'],
-                'price' => $row['price'],
-                // Blank inputs are simply absent from the payload.
-                'duration_minutes' => ($row['duration_minutes'] ?? null) ?: null,
-                'is_default' => (bool) ($row['is_default'] ?? false),
-            ];
-
-            if (! empty($row['id'])) {
-                $variant = $service->variants()->whereKey($row['id'])->first();
-
-                if ($variant) {
-                    if ($attributes['is_default']) {
-                        $service->variants()->whereKeyNot($variant->id)->update(['is_default' => false]);
-                    }
-
-                    $variant->update($attributes);
-                    $keepIds[] = $variant->id;
-
-                    continue;
-                }
-            }
-
-            if ($attributes['is_default']) {
-                $service->variants()->update(['is_default' => false]);
-            }
-
-            $keepIds[] = $service->variants()->create($attributes)->id;
-        }
-
-        // Variants omitted from the form are removed.
-        $service->variants()->whereNotIn('id', $keepIds ?: [0])->delete();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function categorySuggestions(): array
-    {
-        return array_values(array_unique(array_merge(
-            Service::query()->distinct()->pluck('category')->all(),
-            [
-                'Hair Care', 'Hair Styling', 'Nail Care', 'Lash & Brow', 'Skincare',
-                'Massage & Spa', 'Facial', 'Waxing & Threading', 'Makeup', 'Packages',
-            ],
-        )));
-    }
 }

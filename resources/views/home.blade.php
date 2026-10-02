@@ -6,8 +6,34 @@
     {{-- ================= HERO ================= --}}
     <section class="home-hero">
         <div class="home-hero-copy">
-            <div class="home-floral home-floral-top" aria-hidden="true">&#10048;</div>
-            <div class="home-floral home-floral-bottom" aria-hidden="true">&#10048;</div>
+            <svg class="home-hero-edge" viewBox="0 0 100 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <path d="M90,0 C76,150 98,300 87,420 C76,540 97,700 88,820 C84,898 90,958 90,1000" />
+            </svg>
+
+            <svg class="home-botanical home-botanical-top" viewBox="0 0 240 240" fill="none" aria-hidden="true" focusable="false">
+                <g stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(72 120 96)" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(144 120 96)" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(216 120 96)" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(288 120 96)" />
+                    <circle cx="120" cy="96" r="10" />
+                    <path d="M120 106 C118 140 116 176 110 214" />
+                    <path d="M116 162 C92 156 76 140 72 118 C96 120 112 138 116 162 Z" />
+                    <path d="M114 188 C140 182 156 166 160 144 C136 146 120 164 114 188 Z" />
+                </g>
+            </svg>
+
+            <svg class="home-botanical home-botanical-bottom" viewBox="0 0 240 240" fill="none" aria-hidden="true" focusable="false">
+                <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(90 120 96)" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(180 120 96)" />
+                    <path d="M120 96 C106 86 102 64 114 48 C126 32 148 34 152 50 C156 66 138 88 120 96 Z" transform="rotate(270 120 96)" />
+                    <circle cx="120" cy="96" r="9" />
+                    <path d="M120 106 C118 142 116 178 112 220" />
+                </g>
+            </svg>
 
             <p class="home-kicker">WELCOME TO</p>
 
@@ -22,7 +48,10 @@
             </p>
 
             <div class="home-hero-buttons">
-                <a href="{{ route('appointments.create') }}" class="btn-primary btn-lg">Book an Appointment</a>
+                <a href="{{ route('appointments.create') }}" class="btn-primary btn-lg">
+                    <i class="fas fa-calendar-check" aria-hidden="true"></i>
+                    Book an Appointment
+                </a>
                 <a href="{{ route('services.index') }}" class="btn-secondary btn-lg">
                     Explore Our Services
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
@@ -48,29 +77,37 @@
         </div>
 
         <div class="home-hero-media">
-            <img src="{{ asset('images/hero2.jpg') }}" alt="Inside Balai ti Arjud beauty lounge"
+            <img src="{{ asset('images/hero.jpg') }}" alt="Inside Balai ti Arjud beauty lounge"
                  fetchpriority="high">
             <div class="home-gold-arc" aria-hidden="true"></div>
         </div>
     </section>
 
-    {{-- ================= SPECIAL OFFERS ================= --}}
+    <button type="button" class="home-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">
+        &#8679;
+    </button>
+
+    {{-- ================= PROMOS ================= --}}
     @if ($promos->isNotEmpty())
-        <section id="offers" class="home-section" data-tab-title="PROMO | {{ config('app.name') }}">
+        <section class="home-section" aria-labelledby="home-promos-heading">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="home-head">
-                    <p class="home-eyebrow">Special Offers</p>
-                    <h2 class="home-title">Current promos, just for you</h2>
+                    <p class="home-eyebrow">SPECIAL OFFERS</p>
+                    <h2 class="home-title" id="home-promos-heading">Current Promos</h2>
                     <p class="home-sub">
-                        Limited-time packages and discounts while they last. Book early to secure your slot.
+                        Limited-time offers the salon is running right now.
                     </p>
                 </div>
 
+                {{-- The same `.home-promo-*` card the Promo page uses, so a promo
+                     looks identical wherever it appears. Stacked rather than a
+                     grid: the card is half picture by design, and three of them
+                     side by side would each be too narrow to read. --}}
                 <div class="home-promo-grid">
                     @foreach ($promos as $offer)
                         <article class="home-promo-card">
                             <div class="home-promo-media">
-                                @if ($offer->image_url)
+                                @if ($offer->hasImage())
                                     <img src="{{ $offer->image_url }}" alt="{{ $offer->title }}" loading="lazy">
                                 @else
                                     <span class="home-promo-flourish" aria-hidden="true">&#10048;</span>
@@ -80,23 +117,50 @@
 
                             <div class="home-promo-body">
                                 <h3>{{ $offer->title }}</h3>
-                                <p>{{ \Illuminate\Support\Str::limit(strip_tags($offer->description), 140) }}</p>
+                                <p>{{ $offer->description }}</p>
 
                                 <div class="home-promo-foot">
                                     <p class="home-promo-validity">Valid {{ $offer->validity_label }}</p>
                                     <a href="{{ route('appointments.create') }}" class="btn-primary btn-sm shrink-0">
-                                        Book This Offer
+                                        Book Now
                                     </a>
                                 </div>
                             </div>
                         </article>
                     @endforeach
                 </div>
+
+                <div class="home-more">
+                    <a href="{{ route('promos.index') }}" class="btn-secondary">
+                        See all offers
+                    </a>
+                </div>
             </div>
         </section>
     @endif
 
-    <button type="button" class="home-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">
-        &#8679;
-    </button>
+    {{-- ================= MOST BOOKED ================= --}}
+    <section class="home-section" aria-labelledby="home-most-booked-heading">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="home-head">
+                <p class="home-eyebrow">MOST BOOKED</p>
+                <h2 class="home-title" id="home-most-booked-heading">Services our clients love</h2>
+                <p class="home-sub">
+                    The treatments that come back to the chair most often.
+                </p>
+            </div>
+
+            <div class="home-service-grid">
+                @foreach ($mostBooked as $service)
+                    <x-ui.service-card :service="$service" />
+                @endforeach
+            </div>
+
+            <div class="home-more">
+                <a href="{{ route('services.index') }}" class="btn-secondary">
+                    Explore our services
+                </a>
+            </div>
+        </div>
+    </section>
 @endsection

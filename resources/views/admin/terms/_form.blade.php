@@ -3,13 +3,13 @@
 
     Uses a dependency-free contenteditable editor with an execCommand toolbar
     rather than pulling in TipTap/Quill — the output is a plain HTML string that
-    is versioned, published and rendered verbatim on the customer side. If you
-    later swap in TipTap, only this partial and its Alpine data need changing;
-    the `content` textarea stays the contract with the controller.
+    is published and rendered verbatim on the customer side. If you later swap
+    in TipTap, only this partial and its Alpine data need changing; the
+    `content` textarea stays the contract with the controller.
 --}}
 @extends('layouts.admin')
 
-@section('title', $term->exists ? 'Edit Terms' : 'New Terms Version')
+@section('title', $term->exists ? 'Edit Terms' : 'New Terms')
 @section('heading', 'Terms & Conditions Editor')
 
 @section('content')
@@ -20,13 +20,12 @@
 
     <x-ui.page-header
         eyebrow="Policies"
-        :title="$term->exists ? 'Edit Terms · '.$term->category->label() : 'New Terms Version'"
+        :title="$term->exists ? 'Edit Terms · '.$term->category->label() : 'New Terms'"
         :description="$term->exists && $term->is_published
-            ? 'This version is published. Saving a change creates a new version; the published record stays immutable.'
-            : 'Drafts can be edited freely. Publishing retires the previous version.'"
+            ? 'This policy is live. Saving replaces the text customers see right now.'
+            : 'Only published policies are shown to customers.'"
     />
 
-    <x-ui.errors />
 
     @php $action = $term->exists ? route('admin.terms.update', $term) : route('admin.terms.store'); @endphp
 
@@ -125,8 +124,8 @@
                 <x-ui.card title="Publishing">
                     @if ($term->exists && $term->is_published)
                         <x-ui.alert type="warning" class="mb-4" :dismissible="false">
-                            Version {{ $term->version }} is live. Saving will create version
-                            {{ \App\Models\TermsAndCondition::nextVersionFor($term->category) }} and publish it.
+                            This policy is live. Saving replaces the text customers see right now — keep
+                            &ldquo;Publish&rdquo; ticked, since un-ticking it is refused.
                         </x-ui.alert>
                     @endif
 
@@ -134,13 +133,13 @@
                         name="is_published"
                         value="1"
                         :checked="old('is_published', $term->exists ? $term->is_published : true)"
-                        label="Publish immediately (retires the previous version)"
+                        label="Publish this policy (show it to customers)"
                     />
                 </x-ui.card>
 
                 <div class="flex flex-col gap-3">
                     <button type="submit" class="btn-primary w-full">
-                        {{ $term->exists && $term->is_published ? 'Save as New Version' : ($term->exists ? 'Save Draft' : 'Create Version') }}
+                        {{ $term->exists ? 'Save Changes' : 'Save Terms' }}
                     </button>
                     <a href="{{ route('admin.terms.index') }}" class="btn-ghost w-full">Cancel</a>
                 </div>

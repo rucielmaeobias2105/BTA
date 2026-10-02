@@ -13,8 +13,11 @@ use App\Models\Service;
 use App\Models\ServiceVariant;
 use App\Models\SalonSetting;
 use App\Notifications\AppointmentBookedNotification;
+use App\Support\PriceFormatter;
+use App\Support\SendsNotificationsQuietly;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Creates appointments from the booking form and keeps linked inventory in
@@ -23,11 +26,20 @@ use Illuminate\Support\Facades\DB;
  */
 class BookingService
 {
+    use SendsNotificationsQuietly;
+
     /**
      * Resolve the selected service/variant pairs into priced lines.
      *
+     * The amount comes from `base_price`, never from the advertised `price`
+     * string: a service can be listed as "249/499" or "100+", and taking a
+     * number out of that would invent a charge. A line with no base price is
+     * refused outright rather than being booked at zero.
+     *
      * @param  array<int, array{service_id: int|string, service_variant_id?: int|string|null, quantity?: int|string}>  $selections
-     * @return array<int, array{Service $service, ?ServiceVariant $variant, int $quantity, float $price, int $duration}>
+     * @return array<int, array{Service $service, ?ServiceVariant $variant, int $quantity, float $price, string $display_price, int $duration}>
+     *
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function resolveLines(array $selections): array
     {
@@ -49,11 +61,29 @@ class BookingService
 
             $quantity = max(1, (int) ($selection['quantity'] ?? 1));
 
+            // A variant with no amount of its own falls back to the service's,
+            // the same way a variant with no price always has. The advertised
+            // string still comes from the variant, so the customer sees the
+            // variant they picked.
+            $base = $variant?->base_price ?? $service->base_price;
+            $priced = $variant && $variant->base_price !== null ? $variant : $service;
+
+            if ($base === null) {
+                throw ValidationException::withMessages([
+                    'services' => sprintf(
+                        '"%s" has no amount to charge yet. Its price is %s, which booking totals cannot be calculated from. An admin needs to set the amount to charge first.',
+                        $priced->name,
+                        PriceFormatter::display($priced->price, 'not set'),
+                    ),
+                ]);
+            }
+
             $lines[] = [
                 'service' => $service,
                 'variant' => $variant,
                 'quantity' => $quantity,
-                'price' => (float) ($variant?->price ?? $service->price),
+                'price' => (float) $base,
+                'display_price' => (string) ($variant?->price ?? $service->price),
                 'duration' => (int) ($variant?->effectiveDuration() ?? $service->duration_minutes),
             ];
         }
@@ -62,7 +92,7 @@ class BookingService
     }
 
     /**
-     * @param  array<int, array{Service $service, ?ServiceVariant $variant, int $quantity, float $price, int $duration}>  $lines
+     * @param  array<int, array{Service $service, ?ServiceVariant $variant, int $quantity, float $price, string $display_price, int $duration}>  $lines
      */
     public function totalFor(array $lines): float
     {
@@ -94,6 +124,7 @@ class BookingService
                 'allergies' => $data['allergies'] ?? null,
                 'last_services_availed' => $data['last_services_availed'] ?? null,
                 'preferred_stylist_id' => $data['preferred_stylist_id'] ?? null,
+                'technician_id' => $data['technician_id'] ?? null,
                 'special_request' => $data['special_request'] ?? null,
                 'down_payment_reference' => $data['down_payment_reference'] ?? null,
                 'down_payment_amount' => $settings->down_payment_required
@@ -116,6 +147,9 @@ class BookingService
                     'service_name' => $line['service']->name,
                     'variant_name' => $line['variant']?->name,
                     'price' => $line['price'],
+                    // What the customer was shown at the time, so a later edit
+                    // to the service cannot rewrite the history of a booking.
+                    'display_price' => $line['display_price'],
                     'duration_minutes' => $line['duration'],
                     'quantity' => $line['quantity'],
                 ]);
@@ -137,7 +171,26 @@ class BookingService
         $appointment->load('serviceLines');
 
         if ($userId) {
-            $appointment->user?->notify(new AppointmentBookedNotification($appointment));
+            /*
+             * Quietly, because by this line the booking exists.
+             *
+             * The transaction has committed, the inventory is decremented and the
+             * customer is being redirected to a success page. A confirmation
+             * email that cannot be sent — a wrong SMTP password, a Gmail outage —
+             * must not turn all of that into a 500. If it did, the customer would
+             * see a failed booking that is in fact saved, submit again, and book
+             * the same slot twice; and the operator would be reading a mail
+             * credential error reported as a booking form fault.
+             *
+             * `notifyQuietly()` logs the failure and reports it. The booking is
+             * not rolled back and the customer is not told their booking failed,
+             * because it did not.
+             */
+            $this->notifyQuietly(
+                $appointment->user,
+                new AppointmentBookedNotification($appointment),
+                'booking confirmation',
+            );
         }
 
         return $appointment;
@@ -146,7 +199,7 @@ class BookingService
     /**
      * Deduct each linked item and re-derive its status tag.
      *
-     * @param  array<int, array{Service $service, ?ServiceVariant $variant, int $quantity, float $price, int $duration}>  $lines
+     * @param  array<int, array{Service $service, ?ServiceVariant $variant, int $quantity, float $price, string $display_price, int $duration}>  $lines
      */
     protected function consumeInventory(array $lines): void
     {

@@ -32,11 +32,35 @@ class RegistrationTest extends TestCase
             ->assertSee('Confirm Password');
     }
 
+    /**
+     * The navbar no longer offers Register, so the login screen is the only
+     * way in — which is why it has to keep linking to registration itself.
+     *
+     * Without this, dropping the navbar button would leave a visitor with no
+     * path to an account at all.
+     */
+    public function test_registration_is_reachable_from_the_login_screen(): void
+    {
+        $html = $this->get('/login')->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            'href="'.route('register').'"',
+            $html,
+            'The login screen should link to registration.',
+        );
+
+        // Guest navbar: a Log In link, and no Register link.
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('href="'.route('login').'"', false)
+            ->assertDontSee('href="'.route('register').'"', false);
+    }
+
     public function test_a_visitor_can_register_and_is_signed_in(): void
     {
         $response = $this->post('/register', $this->payload());
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('home'));
         $this->assertAuthenticated();
 
         $user = User::firstWhere('email', 'juan@example.test');

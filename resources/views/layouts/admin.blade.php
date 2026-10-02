@@ -7,10 +7,46 @@
     <meta name="theme-color" content="#7A241B">
     <meta name="robots" content="noindex, nofollow">
 
+    {{-- Who this page believes it is for: `admin:3`, `web:12` or `guest`.
+         Read by `sessionSync`, which writes it to `localStorage` and watches for
+         another tab writing a different one — the mechanism that stops a customer
+         tab from sitting on a stale session after the staff portal has been
+         signed into. The server half is `App\Support\SessionIdentity`. --}}
+    <meta name="bta-session" content="{{ \App\Support\SessionIdentity::key() }}">
+
+    {{-- Where `sessionSync` sends a tab when the browser's identity changes.
+         See the note on the customer layout. --}}
+    <meta name="bta-home-admin" content="{{ route('admin.dashboard') }}">
+    <meta name="bta-home-web" content="{{ route('home') }}">
+    <meta name="bta-login-admin" content="{{ route('admin.login') }}">
+    <meta name="bta-login-web" content="{{ route('login') }}">
+
+    {{-- Where the liveness probe lives. Published rather than hardcoded in
+         `sessionSync`, because this application is served out of a subdirectory
+         (`htdocs/BTA/public`) and a root-absolute `/session-status` 404s there,
+         which silently disables the back/forward-cache check. --}}
+    <meta name="bta-session-status" content="{{ route('session-status') }}">
+
+    {{-- "(2) APPOINTMENTS | Balai ti Arjud Admin" while something has arrived the
+         salon has not looked at, the plain title when there is nothing. Server-
+         rendered rather than left entirely to JavaScript so the count is right
+         before the bundle loads, and kept live afterwards by
+         `adminLiveNotifications` from the same poll that drives the two sidebar
+         badges — see App\Support\TabTitle.
+
+         Both this and the Appointments badge ask
+         `Appointment::unseenForAdminCount()`, so they cannot report different
+         numbers for the same rows. The count is computed while the layout
+         renders, which is after the index action has marked what it showed as
+         seen — so landing on the Appointments page produces a title with no
+         prefix at all, with nothing to correct on the client. --}}
     @php
-        $pageTitle = Str::upper(trim($__env->yieldContent('title', 'Dashboard')));
+        $pageTitle = \App\Support\TabTitle::withCount(
+            Str::upper(trim($__env->yieldContent('title', 'Dashboard'))).' | '.config('app.name').' Admin',
+            \App\Support\TabTitle::adminUnread(),
+        );
     @endphp
-    <title>{{ $pageTitle }} | {{ config('app.name') }} Admin</title>
+    <title>{{ $pageTitle }}</title>
 
     <link rel="icon" href="{{ asset('images/tab_logo.png') }}">
 
@@ -25,7 +61,7 @@
             x-transition.opacity
             x-cloak
             @click="sidebar = false"
-            class="fixed inset-0 z-40 bg-primary/40 backdrop-blur-sm lg:hidden"
+            class="modal-backdrop fixed inset-0 z-40 lg:hidden"
             aria-hidden="true"
         ></div>
 
@@ -35,23 +71,53 @@
             @include('partials.admin.topbar')
 
             <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-                @if (session('status'))
-                    <div class="mb-5">
-                        <x-ui.alert type="success">{{ session('status') }}</x-ui.alert>
-                    </div>
-                @endif
-
                 @yield('content')
             </main>
-
-            <footer class="border-t border-primary/10 px-4 py-4 text-center text-xs text-ink-muted sm:px-6 lg:px-8">
-                {{ config('app.name') }} Admin &middot; Signed in as
-                <span class="font-medium text-primary">{{ auth('admin')->user()->full_name }}</span>
-            </footer>
         </div>
     </div>
 
+    {{-- The app's single success surface. It reads the flash itself, so every
+         confirmation in the admin — including the plain `status` strings most
+         controllers still flash — floats here instead of as a page banner.
+         Outside `@stack('modals')` on purpose: a toast raised from a dialog must
+         outlive the dialog. --}}
+    <x-ui.toast-stack />
+
     @stack('modals')
+
+    {{-- The Terms & Conditions dialog. The admin's Terms screen is the editing
+         surface and stays a page, but "Preview" shows a customer what they will
+         actually see, and that is the modal. --}}
+    <x-terms.modal />
+
+    {{--
+        The live work queue, with no widget of its own.
+
+        This used to be the topbar's notification bell, badge and all, which meant
+        the number sat in the bar while the rows that acted on it sat in the
+        sidebar. The count is now on those rows, and all that was left of the bell
+        was the polling — so that is what lives here: one component, mounted once
+        per page, that keeps the two sidebar badges and the tab title's "(n)" in
+        step from a single request.
+
+        It renders nothing, so where it is mounted does not matter visually. It
+        listens on the window for `admin-read-all` and `admin-read-message` so the
+        Messages screen can ask it to mark things read without a second poller and
+        without the screen having to know anything about the feed.
+    --}}
+    <div
+        x-data="adminLiveNotifications(@js([
+            'endpoint' => route('admin.notifications.feed'),
+            'pending' => \App\Models\Appointment::unseenForAdminCount(),
+            'unread' => \App\Models\ContactMessage::query()->unread()->count(),
+            'readUrl' => route('admin.notifications.read', ['message' => '__ID__']),
+            'readAllUrl' => route('admin.notifications.read-all'),
+        ]))"
+        x-on:admin-read-all.window="markAllRead()"
+        x-on:admin-read-message.window="read($event.detail)"
+        hidden
+    ></div>
+
     @stack('scripts')
 </body>
 </html>

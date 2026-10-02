@@ -32,7 +32,12 @@ class RescheduleRequest extends FormRequest
     }
 
     /**
-     * Re-validate the new slot against blocked dates and availability.
+     * Re-validate the new slot against availability.
+     *
+     * The blocked-date check that used to be here went with the Calendar &
+     * Blocked Dates feature. Nothing else about rescheduling depends on which
+     * service the booking is for, so `$serviceId` is no longer resolved from the
+     * appointment's service lines either.
      */
     public function withValidator(Validator $validator): void
     {
@@ -51,12 +56,10 @@ class RescheduleRequest extends FormRequest
             }
 
             $availability = BookingAvailability::make();
-            $serviceId = $appointment->serviceLines->first()?->service_id;
 
             $problems = $availability->timeProblems(
                 $this->input('preferred_date'),
                 $this->input('preferred_time'),
-                $serviceId,
                 $appointment->id,
             );
 
@@ -64,5 +67,30 @@ class RescheduleRequest extends FormRequest
                 $validator->errors()->add('preferred_date', $problem);
             }
         });
+    }
+
+    /**
+     * The minimum-notice rule raises an amber toast, same as the booking form.
+     *
+     * Reschedule reaches it through `timeProblems()` rather than
+     * `dateProblems()`, so the message arrives on a different path but is the same
+     * constant.
+     */
+    protected function failedValidation(Validator $validator): void
+    {
+        $messages = $validator->errors()->all();
+
+        foreach ([BookingAvailability::MINIMUM_NOTICE_MESSAGE] as $watched) {
+            if (in_array($watched, $messages, true)) {
+                session()->flash('toast', [
+                    'type' => 'warning',
+                    'message' => $watched,
+                ]);
+
+                break;
+            }
+        }
+
+        parent::failedValidation($validator);
     }
 }

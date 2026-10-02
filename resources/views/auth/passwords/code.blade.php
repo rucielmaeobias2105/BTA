@@ -1,4 +1,4 @@
-@extends('layouts.guest')
+@extends('layouts.auth')
 
 @section('title', 'Verify Code')
 
@@ -13,7 +13,6 @@
         </p>
     </div>
 
-    <x-ui.errors />
 
     <form method="POST" action="{{ route('password.verify') }}" class="space-y-4" novalidate>
         @csrf

@@ -8,34 +8,138 @@ use Illuminate\Support\Str;
 
 class ServiceSeeder extends Seeder
 {
+    /**
+     * Duration used when a catalogue entry does not state one.
+     *
+     * Matches the column's own declared default in the schema
+     * (`unsignedSmallInteger('duration_minutes')->default(60)`), so it is the
+     * system's documented fallback rather than a number invented here.
+     *
+     * It has to be applied in PHP rather than left to the column default: the
+     * live development database carries `duration_minutes` as nullable with a
+     * NULL default, while a fresh `migrate` creates it NOT NULL. Writing an
+     * explicit null therefore succeeds locally and then fails on a clean
+     * install — which is how a seeded deploy of this project would break.
+     */
+    public const DEFAULT_DURATION = 60;
+
     public function run(): void
     {
         foreach ($this->catalogue() as $entry) {
-            $service = Service::updateOrCreate(
-                ['slug' => Str::slug($entry['name'])],
+            $this->upsertEntry($entry);
+        }
+    }
+
+    /**
+     * Create or update one catalogue entry, and its variants.
+     *
+     * Public so a single service can be seeded without touching the rest of the
+     * catalogue: `ServiceSeeder::upsertEntry()` writes exactly one row and
+     * nothing else.
+     *
+     * @param  array<string, mixed>  $entry
+     */
+    public function upsertEntry(array $entry): Service
+    {
+        $values = [
+            'name' => $entry['name'],
+            'category' => $entry['category'],
+            'price' => $entry['price'],
+            'duration_minutes' => $entry['duration'] ?? self::DEFAULT_DURATION,
+            'description' => $entry['description'],
+            'photo_path' => $entry['photo'] ?? null,
+            'is_active' => true,
+            'is_featured' => $entry['featured'] ?? false,
+        ];
+
+        /*
+         * `withTrashed()`, and a `restore()` when the row comes back trashed.
+         *
+         * A soft-deleted service still holds its slug, because `services.slug` is
+         * a plain unique index and deleting a row does not free the value. An
+         * ordinary `updateOrCreate()` cannot see that row — the SoftDeletes
+         * global scope hides it — so it tries to INSERT a second row with the
+         * slug the hidden row already owns and dies on
+         * `services_slug_unique`. Seeding a service the salon previously listed
+         * and then removed therefore crashes rather than restoring it.
+         *
+         * Restoring is also the right outcome rather than a workaround: the
+         * service is genuinely back on the price list, and keeping its id means
+         * any past appointment line pointing at it stays attached instead of
+         * being orphaned by a replacement row.
+         */
+        $slug = $this->slugFor($entry);
+        $existing = Service::withTrashed()->where('slug', $slug)->first();
+
+        if ($existing) {
+            $existing->fill($values);
+
+            if ($existing->trashed()) {
+                $existing->restore();
+            }
+
+            $existing->save();
+            $service = $existing;
+        } else {
+            $service = Service::create(['slug' => $slug, ...$values]);
+        }
+
+        foreach ($entry['variants'] ?? [] as $variant) {
+            $service->variants()->updateOrCreate(
+                ['name' => $variant['name']],
                 [
-                    'name' => $entry['name'],
-                    'category' => $entry['category'],
-                    'price' => $entry['price'],
-                    'duration_minutes' => $entry['duration'],
-                    'description' => $entry['description'],
-                    'photo_path' => $entry['photo'] ?? null,
-                    'is_active' => true,
-                    'is_featured' => $entry['featured'] ?? false,
+                    'price' => $variant['price'],
+                    'duration_minutes' => $variant['duration'] ?? null,
+                    'is_default' => $variant['default'] ?? false,
                 ],
             );
-
-            foreach ($entry['variants'] ?? [] as $variant) {
-                $service->variants()->updateOrCreate(
-                    ['name' => $variant['name']],
-                    [
-                        'price' => $variant['price'],
-                        'duration_minutes' => $variant['duration'] ?? null,
-                        'is_default' => $variant['default'] ?? false,
-                    ],
-                );
-            }
         }
+
+        return $service;
+    }
+
+    /**
+     * A slug for this entry that cannot collide with a service in another category.
+     *
+     * `Str::slug($name)` alone is not enough, because `services.slug` is unique
+     * across the whole table while the price list is not: it sells a *Hair Color*
+     * in HAIR CARE SERVICES at one price and a different *Hair Color* in Hair
+     * Glowout at another. Both slug to `hair-color`, so a second entry would
+     * silently overwrite the first and the cheaper service would disappear from
+     * the catalogue.
+     *
+     * So when the plain slug already belongs to a service in a *different*
+     * category, the category is folded into the slug. Re-running the seeder is
+     * then stable: the entry finds its own row, the category matches, and the
+     * clash test is false — so it updates rather than accumulating `-2`
+     * suffixes.
+     *
+     * @param  array<string, mixed>  $entry
+     */
+    protected function slugFor(array $entry): string
+    {
+        $slug = $entry['slug'] ?? Str::slug($entry['name']);
+        $category = $entry['category'];
+
+        $takenElsewhere = Service::withTrashed()
+            ->where('slug', $slug)
+            ->where('category', '!=', $category)
+            ->exists();
+
+        if (! $takenElsewhere) {
+            return $slug;
+        }
+
+        $alternative = Str::slug($category.' '.$entry['name']);
+        $candidate = $alternative;
+        $suffix = 2;
+
+        while (Service::withTrashed()->where('slug', $candidate)->where('category', '!=', $category)->exists()) {
+            $candidate = $alternative.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $candidate;
     }
 
     /**
@@ -232,6 +336,223 @@ class ServiceSeeder extends Seeder
                     ['name' => 'Bridal Glow', 'price' => 12500, 'default' => true],
                     ['name' => 'Bridal Glow + Extensions', 'price' => 16800, 'duration' => 420],
                 ],
+            ],
+
+            // ==============================================================
+            // Price-list update — therapeutic and spot massage, hair care,
+            // the Hair Glowout line, and kiddie services.
+            //
+            // `duration` is left null wherever the price list does not state
+            // one. `duration_minutes` is nullable in this schema, but
+            // `BookingService` casts it with `(int)`, so a null duration
+            // becomes a zero-minute booking line rather than an error. Fill
+            // these in through the admin Services screen before the salon
+            // takes bookings against them.
+            //
+            // The two `Hair Color` entries are deliberately the same name in
+            // two categories at two different prices, exactly as the price
+            // list has them. `slugFor()` keeps their slugs apart.
+            // ==============================================================
+
+            // --- Therapeutic Massage ---
+            [
+                // This row already exists in the database as "Moving Ventosa
+                // Massage (75mins)" with no duration recorded. It is matched
+                // by its existing slug so the entry is corrected in place
+                // rather than seeded as a near-duplicate beside it.
+                'slug' => 'moving-ventosa-massage-75mins',
+                'name' => 'Moving Ventosa Massage',
+                'category' => 'Therapeutic Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 799,
+                'duration' => 75,
+                'description' => 'Ventosa therapy with cupping moved across the back for circulation and muscle release.',
+            ],
+            [
+                'name' => 'Stationary Ventosa Massage',
+                'category' => 'Therapeutic Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 799,
+                'duration' => 75,
+                'description' => 'Ventosa therapy with the cups held in place on the back for a deeper, targeted treatment.',
+            ],
+            [
+                'name' => 'Aromatherapy Massage',
+                'category' => 'Therapeutic Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 799,
+                'duration' => 90,
+                'description' => 'A full-length massage using essential oils chosen for relaxation.',
+            ],
+            [
+                'name' => 'Hotstone Massage',
+                'category' => 'Therapeutic Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 799,
+                'duration' => 90,
+                'description' => 'Warm basalt stones worked into the muscles to ease stiffness and tension.',
+            ],
+
+            // --- Spot Massage ---
+            [
+                'name' => 'Head + Shoulder',
+                'category' => 'Spot Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 200,
+                'duration' => 30,
+                'description' => 'Focused relief for the head, neck and shoulders.',
+            ],
+            [
+                'name' => 'Back',
+                'category' => 'Spot Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 200,
+                'duration' => 30,
+                'description' => 'Focused relief for the back.',
+            ],
+            [
+                'name' => 'Hands + Arms',
+                'category' => 'Spot Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 200,
+                'duration' => 30,
+                'description' => 'Focused relief for the hands and arms.',
+            ],
+            [
+                'name' => 'Feet + Legs',
+                'category' => 'Spot Massage',
+                'batch' => 'price-list-2026-10',
+                'price' => 200,
+                'duration' => 30,
+                'description' => 'Focused relief for the feet and lower legs.',
+            ],
+
+            // --- Hair Care ---
+            [
+                'name' => 'Glow Haircut',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 120',
+                'duration' => null,
+                'description' => 'Cut and finish tailored to your hair length. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+            [
+                'name' => 'Hot Oil',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 350',
+                'duration' => null,
+                'description' => 'Hot-oil treatment to nourish and add shine. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+            [
+                'name' => 'Hair Color',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 500',
+                'duration' => null,
+                'description' => 'Full colour service. Price varies with length and coverage. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+            [
+                'name' => 'Hair Spa',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 450',
+                'duration' => null,
+                'description' => 'Deep-conditioning treatment for softness and shine. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+            [
+                'name' => 'Keratin',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 800',
+                'duration' => null,
+                'description' => 'Keratin smoothing to reduce frizz and shorten styling time. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+            [
+                'name' => 'Rebond',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 1,500',
+                'duration' => null,
+                'description' => 'Chemical rebonding for a permanent straightened finish. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+            [
+                'name' => 'Bleach',
+                'category' => 'Hair Care',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 500',
+                'duration' => null,
+                'description' => 'Lightening or pre-lightening treatment. Comes with a complimentary shampoo, blow-dry and express massage.',
+            ],
+
+            // --- Hair Glowout ---
+            [
+                'name' => 'Kerabond',
+                'category' => 'Hair Glowout',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 2,000',
+                'duration' => null,
+                'description' => 'Keratin straightening bonded with keratin treatment for a smooth, glossy finish.',
+            ],
+            [
+                'name' => 'Hair Color + Rebond',
+                'category' => 'Hair Glowout',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 1,800',
+                'duration' => null,
+                'description' => 'Colour and rebonding in one appointment for a single transformation.',
+            ],
+            [
+                'name' => 'Hair Color + Kerabond',
+                'category' => 'Hair Glowout',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 2,300',
+                'duration' => null,
+                'description' => 'Colour combined with keratin rebonding for the smoothest, glossiest result.',
+            ],
+            [
+                // The same name as the HAIR CARE SERVICES entry above, at a
+                // different price. Kept distinct by `slugFor()`.
+                'name' => 'Hair Color',
+                'category' => 'Hair Glowout',
+                'batch' => 'price-list-2026-10',
+                'price' => 'starts @ 850',
+                'duration' => null,
+                'description' => 'Colour as part of the Hair Glowout treatment range.',
+            ],
+
+            // --- Kiddie Services ---
+            [
+                'name' => 'Kiddie Mani',
+                'category' => 'Kiddie Services',
+                'batch' => 'price-list-2026-10',
+                'price' => 69,
+                'duration' => null,
+                'description' => 'A gentle manicure sized and shaped for young hands.',
+            ],
+            [
+                'name' => 'Kiddie Pedi',
+                'category' => 'Kiddie Services',
+                'batch' => 'price-list-2026-10',
+                'price' => 89,
+                'duration' => null,
+                'description' => 'A gentle pedicure for young feet.',
+            ],
+            [
+                'name' => 'Kiddie Hand Spa',
+                'category' => 'Kiddie Services',
+                'batch' => 'price-list-2026-10',
+                'price' => 149,
+                'duration' => null,
+                'description' => 'A soak, scrub and massage for young hands.',
+            ],
+            [
+                'name' => 'Kiddie Foot Spa',
+                'category' => 'Kiddie Services',
+                'batch' => 'price-list-2026-10',
+                'price' => 199,
+                'duration' => null,
+                'description' => 'A soak, scrub and massage for young feet.',
             ],
         ];
     }

@@ -9,41 +9,15 @@
         Back to users
     </a>
 
-    <x-ui.page-header
-        eyebrow="Customer"
-        :title="$user->full_name"
-        :description="'Joined '.$user->created_at->format('F j, Y').' · Last login '.($user->last_login_at?->format('M j, Y') ?? 'never')"
-    >
-        <x-slot:actions>
-            <form method="POST" action="{{ route('admin.users.status', $user) }}">
-                @csrf
-                @method('PATCH')
-                <button type="submit" class="btn-gold btn-sm">{{ $user->is_active ? 'Deactivate Account' : 'Reactivate Account' }}</button>
-            </form>
-            <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
-                  onsubmit="return confirm('Delete {{ $user->full_name }}? Their appointment history is kept for reporting.')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn-danger btn-sm">Delete</button>
-            </form>
-        </x-slot:actions>
-    </x-ui.page-header>
-
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        @foreach ([
-            ['Total Bookings', $stats['total']],
-            ['Completed', $stats['completed']],
-            ['Cancelled', $stats['cancelled']],
-            ['Lifetime Value', '₱'.number_format($stats['total_spent'], 2)],
-        ] as [$label, $value])
-            <div class="bta-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-wider text-ink-muted">{{ $label }}</p>
-                <p class="mt-1.5 font-display text-2xl font-bold text-primary">{{ $value }}</p>
-            </div>
-        @endforeach
-    </div>
-
-    <div class="mt-6 grid gap-6 xl:grid-cols-3">
+    {{--
+        No page header and no stat cards, and no Deactivate/Delete here either:
+        the top bar already says which customer this is, the Account Details
+        card beside the history carries the name, the dates and the account's
+        state, and both actions stay on the row in the Registered Users list
+        where they are one click from every other account rather than buried on
+        a page reached by opening each one.
+    --}}
+    <div class="grid gap-6 xl:grid-cols-3">
         <div class="space-y-6 xl:col-span-2">
             <x-ui.card title="Appointment History">
                 @if ($user->appointments->isEmpty())
@@ -79,31 +53,13 @@
                     </div>
                 @endif
             </x-ui.card>
-
-            <x-ui.card title="Reviews" :subtitle="$user->reviews->count().' review(s) written'">
-                @if ($user->reviews->isEmpty())
-                    <p class="text-sm text-ink-muted">No reviews written.</p>
-                @else
-                    <ul class="space-y-3.5">
-                        @foreach ($user->reviews as $review)
-                            <li class="border-b border-primary/8 pb-3.5 last:border-0 last:pb-0">
-                                <div class="flex items-center justify-between gap-3">
-                                    <x-ui.star-rating :value="$review->rating" :interactive="false" size="sm" />
-                                    <span class="text-xs text-ink-muted">{{ $review->created_at->format('M j, Y') }}</span>
-                                </div>
-                                <p class="mt-1.5 text-sm text-ink">{{ $review->message }}</p>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </x-ui.card>
         </div>
 
         <aside>
             <x-ui.card title="Account Details">
                 <div class="mb-5 flex items-center gap-4">
                     @if ($user->profile_photo_path)
-                        <img src="{{ Storage::url($user->profile_photo_path) }}" alt="" class="h-16 w-16 rounded-full object-cover ring-2 ring-gold ring-offset-2 ring-offset-cream">
+                        <img src="{{ $user->profile_photo_url }}" alt="" class="h-16 w-16 rounded-full object-cover ring-2 ring-gold ring-offset-2 ring-offset-cream">
                     @else
                         <span class="flex h-16 w-16 items-center justify-center rounded-full bg-primary font-display text-lg font-semibold text-cream ring-2 ring-gold ring-offset-2 ring-offset-cream">{{ $user->initials }}</span>
                     @endif

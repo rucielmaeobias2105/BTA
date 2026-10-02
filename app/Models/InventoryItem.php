@@ -8,19 +8,49 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class InventoryItem extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    /** Units offered to admins in the item form. */
-    public const UNITS = ['pcs', 'ml', 'bottles', 'boxes', 'sachets', 'grams', 'sets', 'kits'];
+    /**
+     * The unit every item is counted in.
+     *
+     * The form used to offer a dropdown of eight units — pcs, ml, bottles, boxes,
+     * sachets, grams, sets, kits. It was the one field on the form that was never
+     * actually decided per item: the salon counts stock as whole pieces, so the
+     * answer was `pcs` on every row and the other seven options existed only to
+     * be mis-picked.
+     *
+     * It is now a constant rather than a list of choices. The column stays — the
+     * stock CSV exports it, and existing rows keep whatever they were saved with
+     * until they are next edited — so the write path sets this rather than
+     * dropping the value.
+     */
+    public const DEFAULT_UNIT = 'pcs';
 
-    public const CATEGORIES = [
-        'Hair Care', 'Styling', 'Nail Care', 'Lash & Brow', 'Skincare',
-        'Massage & Spa', 'Disinfectants', 'Consumables', 'Retail Products',
-    ];
+    /**
+     * The category every new item is filed under.
+     *
+     * This was a dropdown of the categories the admin had created, which meant the
+     * salon maintained a second, parallel set of category names for its stock —
+     * one for the service catalogue, one for the shelf — and an admin had to pick
+     * the matching label in two places for a report to group sensibly. Nothing
+     * validated that the two agreed, so a stock report could quietly split the
+     * same service across two groups.
+     *
+     * The column itself stays on the table but has been retired from the admin
+     * screens: the form field, the list column, the sort key and the CSV export
+     * column have all gone, because each one was a place to be asked for a second
+     * set of names. Existing rows keep whatever they were saved with, so nothing
+     * historical is rewritten or lost — it is simply no longer collected, shown or
+     * exported, and no longer a sort target. `scopeSearch()` still matches it,
+     * the same as it still matches the retired `supplier`, so an old name typed
+     * into the search box still finds its rows.
+     */
+    public const DEFAULT_CATEGORY = 'General';
 
     protected $fillable = [
         'name',
@@ -28,6 +58,8 @@ class InventoryItem extends Model
         'category',
         'quantity',
         'unit',
+        'date_in',
+        'expiry_date',
         'reorder_threshold',
         'supplier',
         'status_tag',
@@ -40,9 +72,55 @@ class InventoryItem extends Model
         return [
             'quantity' => 'decimal:2',
             'reorder_threshold' => 'decimal:2',
+            'date_in' => 'date',
+            'expiry_date' => 'date',
             'is_active' => 'boolean',
             'status_tag' => ItemTag::class,
         ];
+    }
+
+    /**
+     * Write a stock code the admin never has to invent.
+     *
+     * The item form has no SKU field, but `inventory_items.sku` is NOT NULL and
+     * carries a unique index, and the list prints it under the item name. It is
+     * derived once, on create, from the name — and never regenerated, because a
+     * code the salon has already written on a stock sheet should survive a
+     * rename.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $item) {
+            if (blank($item->sku)) {
+                $item->sku = static::uniqueSkuFor((string) $item->name);
+            }
+        });
+    }
+
+    /**
+     * A stock code for the name that no item — including a soft-deleted one —
+     * is already holding.
+     *
+     * `$exceptId` lets a caller ask for a code without colliding with the row it
+     * would be replacing.
+     */
+    public static function uniqueSkuFor(string $name, ?int $exceptId = null): string
+    {
+        $base = Str::upper(Str::slug($name));
+        $base = Str::limit($base !== '' ? $base : 'ITEM', 57, '');
+
+        $sku = $base;
+        $suffix = 1;
+
+        while (static::withTrashed()
+            ->where('sku', $sku)
+            ->when($exceptId, fn ($query) => $query->whereKeyNot($exceptId))
+            ->exists()
+        ) {
+            $sku = $base.'-'.(++$suffix);
+        }
+
+        return $sku;
     }
 
     public function services(): BelongsToMany
@@ -54,9 +132,19 @@ class InventoryItem extends Model
 
     /**
      * quantity <= reorder threshold — the "auto-suggest Low Stock" rule.
+     *
+     * A null threshold means the salon never set one, and the item form no
+     * longer offers it — so the item is not low on stock, it simply has no
+     * threshold to be low against. Casting the null to 0.0 would say otherwise
+     * and would disagree with `scopeLowStock()`, where a NULL column never
+     * matches a `<=` comparison in SQL.
      */
     public function isLowOnStock(): bool
     {
+        if ($this->reorder_threshold === null) {
+            return false;
+        }
+
         return (float) $this->quantity <= (float) $this->reorder_threshold;
     }
 
@@ -80,7 +168,7 @@ class InventoryItem extends Model
             return ItemTag::SoldOut;
         }
 
-        if ($quantity <= (float) $this->reorder_threshold) {
+        if ($this->isLowOnStock()) {
             return ItemTag::LowStock;
         }
 
@@ -124,11 +212,6 @@ class InventoryItem extends Model
                 ->orWhere('supplier', 'like', $like)
                 ->orWhere('category', 'like', $like));
         });
-    }
-
-    public function scopeCategory(Builder $query, ?string $category): Builder
-    {
-        return $query->when($category, fn (Builder $q) => $q->where('category', $category));
     }
 
     public function scopeActive(Builder $query): Builder

@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\PasswordResetCode;
 use App\Models\User;
 use App\Notifications\PasswordResetCodeNotification;
+use App\Support\IssuedResetCode;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Four-step password reset:
@@ -28,10 +30,15 @@ class PasswordResetService
 
     public function __construct(protected int $expiryMinutes = self::EXPIRY_MINUTES) {}
 
-    /**
-     * Issue a fresh code, invalidating any previous ones for that email.
+/**
+     * Issue a fresh code, invalidating any previous ones for this email.
+     *
+     * Returns the outcome — the plaintext code for tests and for anything that
+     * has to hand it over out of band, plus whether the notification actually
+     * left the server. A delivery failure is not an exception here; see the note
+     * at the send.
      */
-    public function issue(User $user, ?string $ip = null): string
+    public function issue(User $user, ?string $ip = null): IssuedResetCode
     {
         $this->guardAgainstFlooding($user->email);
 
@@ -46,9 +53,37 @@ class PasswordResetService
             'ip_address' => $ip,
         ]);
 
-        $user->notify(new PasswordResetCodeNotification($code, $this->expiryMinutes));
+        /*
+         * The send is best-effort, and deliberately so.
+         *
+         * The code is already stored and hashed by this point, so letting a
+         * transport exception escape would throw away a usable reset for a
+         * reason the person on the other end cannot fix. It would also tell them
+         * something they should not learn: a 500 raised only for a registered
+         * address turns this form into a probe for which addresses exist, and it
+         * does so precisely when the mail server is misconfigured.
+         *
+         * So the exception is caught — but the caller is told it happened, via the
+         * `delivered` flag on the result. Swallowing it silently is what made a
+         * dead SMTP credential indistinguishable from a code sitting in an unread
+         * inbox, and the failure was only ever findable by reading the log.
+         *
+         * A failure is logged with the address so it can be chased, and the
+         * requester is told nothing beyond what an unregistered address is told.
+         * Asking again is what recovers it, and the record left behind is
+         * overwritten by the next attempt.
+         */
+        $delivered = true;
 
-        return $code;
+        try {
+            $user->notify(new PasswordResetCodeNotification($code, $this->expiryMinutes));
+        } catch (Throwable $e) {
+            $delivered = false;
+
+            report($e);
+        }
+
+        return new IssuedResetCode($code, $delivered);
     }
 
     /**

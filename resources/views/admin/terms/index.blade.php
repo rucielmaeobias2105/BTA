@@ -4,100 +4,92 @@
 @section('heading', 'Terms & Conditions')
 
 @section('content')
-    <x-ui.page-header
-        eyebrow="Policies"
-        title="Terms & Conditions"
-        description="Versioned content per category. Publishing a version retires the previous one and updates the customer-facing pages."
-    >
-        <x-slot:actions>
-            @can('admin.terms.manage')
-                <a href="{{ route('admin.terms.create') }}" class="btn-primary btn-sm">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                    New Version
-                </a>
-            @endcan
-        </x-slot:actions>
-    </x-ui.page-header>
 
-    <x-ui.errors />
+    {{--
+        The reference admin terms screen is one card per policy, each with a
+        textarea and a Save button, all on the index. BTA reproduces that
+        structure: one editor per category, saved straight from this page.
 
-    <div class="space-y-6">
+        A category owns exactly one row. Saving overwrites it in place — there is
+        no version history — and the "Publish this policy" checkbox decides
+        whether customers see it. The checkbox defaults to ticked, live or not,
+        so re-saving a live policy cannot silently unpublish it; un-ticking it
+        and saving is how an admin deliberately takes a policy down.
+    --}}
+    <div class="grid gap-6 xl:grid-cols-2">
         @foreach (\App\Enums\TermsCategory::cases() as $category)
             @php
-                $versions = $grouped[$category->value] ?? collect();
+                $row = ($grouped[$category->value] ?? collect())->first();
                 $live = $published[$category->value] ?? null;
             @endphp
 
             <x-ui.card :title="$category->label().' Terms'">
                 <x-slot:actions>
-                    @can('admin.terms.manage')
-                        <a href="{{ route('admin.terms.create', ['category' => $category->value]) }}" class="text-xs font-medium text-primary underline underline-offset-2">Add version</a>
-                    @endcan
-                </x-slot:actions>
+                    {{-- Preview, for a policy that has a live row at all.
 
-                <div class="mb-4 flex flex-wrap items-center gap-2.5 rounded-xl bg-linen/60 px-4 py-3">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-ink-muted">Live for customers</span>
+                         This used to live in the version history list, once per
+                         version row. With that list gone there would be no way to
+                         see the customer-facing rendering at all, and the raw
+                         textarea above is not it — what a customer reads is the
+                         published row put through the terms dialog, with its
+                         numbered list and styling.
+
+                         So it sits on the card, once, and only where there is
+                         something published to preview. It dispatches the shared
+                         dialog rather than linking out, so an admin checks the
+                         text without leaving the screen they are editing on. --}}
                     @if ($live)
-                        <x-ui.badge status="completed" label="v{{ $live->version }} published" />
-                        <span class="text-xs text-ink-muted">{{ $live->published_at?->format('M j, Y') }}</span>
-                        <a href="{{ route('terms.show', $category->value) }}" target="_blank" rel="noopener" class="ml-auto text-xs font-medium text-primary underline underline-offset-2">Preview</a>
+                        <x-terms.link :category="$category" class="btn-ghost btn-sm no-underline">
+                            Preview
+                        </x-terms.link>
+                    @endif
+
+                    @if ($live)
+                        <x-ui.badge status="completed" label="Live" />
                     @else
                         <x-ui.badge status="cancelled" label="Not published" />
                     @endif
-                </div>
+                </x-slot:actions>
 
-                @if ($versions->isEmpty())
-                    <p class="text-sm text-ink-muted">No versions yet.</p>
+                @can('admin.terms.manage')
+                    <form method="POST" action="{{ route('admin.terms.store') }}">
+                        @csrf
+                        <input type="hidden" name="category" value="{{ $category->value }}">
+
+                        <x-ui.form.textarea
+                            name="content"
+                            label="Content"
+                            rows="10"
+                            required
+                            :value="old('content', $row?->content ?? '')"
+                        />
+
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                            {{-- Always ticked by default. It used to default to
+                                 unticked for a policy that was already live, on
+                                 the reasoning that this "cannot silently
+                                 unpublish" it — which had the opposite effect:
+                                 the common case, editing a live policy's text,
+                                 demoted it on every save. Un-ticking and saving
+                                 is now the deliberate way to take one down. --}}
+                            <x-ui.form.checkbox
+                                name="is_published"
+                                value="1"
+                                label="Publish this policy (show it to customers)"
+                            />
+
+                            <button type="submit" class="btn-primary btn-sm">Save</button>
+                        </div>
+                    </form>
                 @else
-                    <ul class="space-y-2.5">
-                        @foreach ($versions as $version)
-                            <li @class([
-                                'flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3',
-                                'border-status-completed/30 bg-status-completed-bg/25' => $version->is_published,
-                                'border-primary/12 bg-linen/50' => ! $version->is_published,
-                            ])>
-                                <div class="min-w-0">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <p class="text-sm font-medium text-primary">Version {{ $version->version }}</p>
-                                        @if ($version->is_published)
-                                            <x-ui.badge status="completed" label="Live" />
-                                        @else
-                                            <x-ui.badge status="pending" label="Draft" />
-                                        @endif
-                                    </div>
-                                    <p class="mt-0.5 text-xs text-ink-muted">
-                                        {{ \Illuminate\Support\Str::limit(strip_tags($version->content), 110) }}
-                                    </p>
-                                    <p class="mt-1 text-[11px] text-ink-muted">
-                                        {{ $version->admin?->full_name ?? 'System' }}
-                                        &middot; {{ $version->created_at->format('M j, Y') }}
-                                    </p>
-                                </div>
-
-                                @can('admin.terms.manage')
-                                    <div class="flex shrink-0 flex-wrap items-center gap-1.5">
-                                        <a href="{{ route('admin.terms.edit', $version) }}" class="btn-secondary btn-sm">Edit</a>
-
-                                        @unless ($version->is_published)
-                                            <form method="POST" action="{{ route('admin.terms.publish', $version) }}"
-                                                  onsubmit="return confirm('Publish version {{ $version->version }}? The current live version will be retired.')">
-                                                @csrf
-                                                <button type="submit" class="btn-primary btn-sm">Publish</button>
-                                            </form>
-
-                                            <form method="POST" action="{{ route('admin.terms.destroy', $version) }}"
-                                                  onsubmit="return confirm('Delete draft version {{ $version->version }}?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                            </form>
-                                        @endunless
-                                    </div>
-                                @endcan
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
+                    <div class="prose-bta max-w-none text-sm leading-relaxed text-ink">
+                        @if ($row)
+                            {!! $row->content !!}
+                        @else
+                            <p>No content yet.</p>
+                        @endif
+                    </div>
+                @endcan
             </x-ui.card>
         @endforeach
     </div>

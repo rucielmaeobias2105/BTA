@@ -232,23 +232,6 @@ return new class extends Migration
         });
 
         // ------------------------------------------------------------------
-        // Reviews — one per completed appointment
-        // ------------------------------------------------------------------
-        Schema::create('reviews', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('appointment_id')->unique()->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('service_id')->nullable()->constrained()->nullOnDelete();
-            $table->unsignedTinyInteger('rating');
-            $table->text('message');
-            $table->string('customer_name');
-            $table->timestamps();
-            $table->softDeletes();
-
-            $table->index(['rating', 'created_at']);
-        });
-
-        // ------------------------------------------------------------------
         // Contact messages
         // ------------------------------------------------------------------
         Schema::create('contact_messages', function (Blueprint $table) {
@@ -267,19 +250,22 @@ return new class extends Migration
         });
 
         // ------------------------------------------------------------------
-        // Terms & Conditions — versioned per category
+        // Terms & Conditions — one row per category
         // ------------------------------------------------------------------
         Schema::create('terms_and_conditions', function (Blueprint $table) {
             $table->id();
-            $table->enum('category', ['booking', 'cancellation', 'rescheduling'])->index();
-            $table->unsignedInteger('version');
+            $table->enum('category', ['booking', 'cancellation', 'rescheduling']);
             $table->longText('content');
             $table->boolean('is_published')->default(false)->index();
             $table->timestamp('published_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('admins')->nullOnDelete();
             $table->timestamps();
 
-            $table->unique(['category', 'version']);
+            // Saving overwrites the category's row in place, so a category has
+            // exactly one. There used to be `unique(['category', 'version'])`
+            // alongside a `version` column; that history is gone, and the unique
+            // index on the category is what stops a second row creeping back in.
+            $table->unique('category');
             $table->index(['category', 'is_published']);
         });
 
@@ -322,7 +308,6 @@ return new class extends Migration
         Schema::dropIfExists('promos');
         Schema::dropIfExists('terms_and_conditions');
         Schema::dropIfExists('contact_messages');
-        Schema::dropIfExists('reviews');
         Schema::dropIfExists('appointment_status_history');
         Schema::dropIfExists('appointment_service');
         Schema::dropIfExists('appointments');

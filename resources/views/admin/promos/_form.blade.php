@@ -1,70 +1,182 @@
-{{-- Shared promo create/edit form. --}}
+{{--
+    Shared promo create/edit form: title, description, the validity window, an
+    optional image and an Active switch.
+
+    The image is the picture the customer promo card leads with, so the field
+    says what it is for. It is optional on purpose — a promo with no picture
+    renders the flourish instead, and `image_path` stays null.
+
+    `enctype` is what makes the file input reach the server at all; without it
+    the browser posts the filename as `image` and validation cannot tell.
+
+    The preview is plain Alpine over a `FileReader`, so an admin sees the crop
+    they just picked before committing to it. `URL.createObjectURL` rather than
+    a data URL: it does not copy the whole file into a base64 string in memory
+    for a 4 MB upload, and the object URL is revoked as soon as it is replaced so
+    a long editing session does not leak one per attempt.
+--}}
 @extends('layouts.admin')
 
-@section('title', $promo->exists ? 'Edit Promo' : 'New Promo')
-@section('heading', $promo->exists ? 'Edit Promo' : 'New Promo')
+@section('title', $promo->exists ? 'Edit Promo' : 'Add Promo')
+@section('heading', $promo->exists ? 'Edit Promo' : 'Add Promo')
 
 @section('content')
-    <a href="{{ route('admin.promos.index') }}" class="mb-5 inline-flex items-center gap-1.5 text-sm text-ink-muted transition hover:text-primary">
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
-        Back to promos
-    </a>
-
-    <x-ui.page-header
-        eyebrow="Marketing"
-        :title="$promo->exists ? 'Edit Promo' : 'New Promo'"
-        description="Active promos surface as a site-wide banner. Use the promo list to push them to customers as notifications."
-    />
-
-    <x-ui.errors />
 
     @php $action = $promo->exists ? route('admin.promos.update', $promo) : route('admin.promos.store'); @endphp
 
-    <form method="POST" action="{{ $action }}" enctype="multipart/form-data" novalidate>
+    <form
+        method="POST"
+        action="{{ $action }}"
+        enctype="multipart/form-data"
+        novalidate
+        x-data="{
+            /* What is on disk right now. Drives the remove box, so it has to be
+               remembered separately from what is on screen: picking a new file
+               replaces the saved one, and offering 'remove' as well would be
+               asking the admin to contradict themselves. */
+            saved: @js($promo->imagePath()),
+            preview: @js($promo->image_url),
+            picked: '',
+            pick(event) {
+                const file = event.target.files[0];
+                if (! file) { return; }
+                if (this.preview?.startsWith('blob:')) { URL.revokeObjectURL(this.preview); }
+                this.preview = URL.createObjectURL(file);
+                this.picked = file.name;
+            },
+        }"
+    >
         @csrf
         @if ($promo->exists) @method('PUT') @endif
 
-        <div class="grid gap-6 xl:grid-cols-3">
-            <div class="space-y-6 xl:col-span-2">
-                <x-ui.card title="Promo Details">
-                    <x-ui.form.input name="title" label="Promo Title" required :value="old('title', $promo->title)" placeholder="e.g. Glow Package Discount" />
+        <div class="bta-card p-6 sm:p-8">
+            <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="font-display text-lg font-semibold text-primary">
+                    {{ $promo->exists ? 'Edit Promo' : 'Add Promo' }}
+                </h2>
 
-                    <div class="mt-5">
-                        <x-ui.form.textarea
-                            name="description"
-                            label="Description"
-                            required
-                            rows="5"
-                            :value="old('description', $promo->description)"
-                            placeholder="What is the offer, and what does the customer get?"
-                        />
-                    </div>
-
-                    <div class="mt-5 grid gap-5 sm:grid-cols-2">
-                        <x-ui.form.input name="starts_at" type="date" label="Valid From" required :value="old('starts_at', $promo->starts_at?->toDateString())" />
-                        <x-ui.form.input name="ends_at" type="date" label="Valid Until" required :value="old('ends_at', $promo->ends_at?->toDateString())" />
-                    </div>
-                </x-ui.card>
+                <a href="{{ route('admin.promos.index') }}" class="btn-secondary btn-sm">
+                    <x-heroicon-o-arrow-left class="h-4 w-4" />
+                    Back
+                </a>
             </div>
 
-            <aside class="space-y-6">
-                <x-ui.card title="Promo Image">
-                    @if ($promo->image_path)
-                        <img src="{{ Storage::url($promo->image_path) }}" alt="" class="mb-4 aspect-[16/9] w-full rounded-xl object-cover">
-                    @endif
+            <div class="max-w-2xl space-y-6">
+                <x-ui.form.input
+                    name="title"
+                    label="Title"
+                    required
+                    :value="old('title', $promo->title)"
+                    placeholder="e.g. Glow Package Discount"
+                />
 
-                    <x-ui.form.input name="image" type="file" label="Upload Image" accept="image/jpeg,image/png,image/webp" hint="JPG, PNG or WEBP. Max 3 MB." />
-                </x-ui.card>
+                <x-ui.form.textarea
+                    name="description"
+                    label="Description"
+                    required
+                    rows="5"
+                    :value="old('description', $promo->description)"
+                    placeholder="What is the offer, and what does the customer get?"
+                />
 
-                <x-ui.card title="Visibility">
-                    <x-ui.form.checkbox name="is_active" value="1" :checked="old('is_active', $promo->exists ? $promo->is_active : true)" label="Active" hint="Must also fall within the validity period to be shown." />
-                </x-ui.card>
-
-                <div class="flex flex-col gap-3">
-                    <button type="submit" class="btn-primary w-full">{{ $promo->exists ? 'Save Changes' : 'Create Promo' }}</button>
-                    <a href="{{ route('admin.promos.index') }}" class="btn-ghost w-full">Cancel</a>
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <x-ui.form.input
+                        name="starts_at"
+                        type="date"
+                        label="Start Date"
+                        required
+                        :value="old('starts_at', $promo->starts_at?->toDateString())"
+                    />
+                    <x-ui.form.input
+                        name="ends_at"
+                        type="date"
+                        label="End Date"
+                        required
+                        :value="old('ends_at', $promo->ends_at?->toDateString())"
+                    />
                 </div>
-            </aside>
+
+                {{-- The image block. `x-data` lives on the form, so `preview` is
+                     shared by the preview, the filename and the remove toggle —
+                     picking a file has to clear the remove box, and a remove has
+                     to clear the preview, or the two contradict each other on
+                     screen. --}}
+                <div>
+                    <label for="image" class="label">
+                        Image <span class="font-normal text-ink-muted">(optional)</span>
+                    </label>
+
+                    <div class="flex flex-wrap items-start gap-4">
+                        <div class="flex h-28 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-linen/50">
+                            <template x-if="preview">
+                                <img :src="preview" alt="" class="h-full w-full object-cover">
+                            </template>
+                            <template x-if="! preview">
+                                <span class="px-3 text-center text-xs text-ink-muted">
+                                    No image — the promo shows its flourish instead
+                                </span>
+                            </template>
+                        </div>
+
+                        <div class="min-w-[14rem] flex-1">
+                            <input
+                                id="image"
+                                name="image"
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                class="input py-2 file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-cream hover:file:bg-primary-dark"
+                                x-on:change="pick($event)"
+                            >
+
+                            <p class="input-hint">
+                                JPG, PNG or WEBP. Up to 4 MB. Without one, this promo keeps the
+                                picture it already has.
+                            </p>
+
+                            <p class="mt-1 truncate text-xs text-ink-muted" x-show="picked" x-cloak>
+                                <span x-text="picked"></span>
+                            </p>
+
+                            {{-- Only offered when there is a saved picture to remove, and
+                                 hidden the moment a replacement is chosen — a new file wins
+                                 over `remove_image`, so showing both would promise something
+                                 the controller does not do. Ticking it clears the preview, so
+                                 the form shows the state it is about to save in rather than a
+                                 picture that is about to disappear. --}}
+                            <label
+                                class="mt-3 flex items-center gap-2 text-sm text-ink"
+                                x-show="saved && ! picked"
+                            >
+                                <input
+                                    type="checkbox"
+                                    name="remove_image"
+                                    value="1"
+                                    class="checkbox"
+                                    x-on:change="if ($event.target.checked) { preview = null; }"
+                                >
+                                Remove the current image
+                            </label>
+                        </div>
+                    </div>
+
+                    @error('image')
+                        <p class="input-error-text">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <x-ui.form.switch
+                    name="is_active"
+                    label="Active"
+                    :checked="$promo->exists ? $promo->is_active : true"
+                />
+            </div>
+
+            <div class="mt-7 border-t border-primary/10 pt-6">
+                <button type="submit" class="btn-primary">
+                    <x-heroicon-o-check class="h-4 w-4" />
+                    Save Promo
+                </button>
+            </div>
         </div>
     </form>
 @endsection

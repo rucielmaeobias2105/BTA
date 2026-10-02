@@ -26,6 +26,20 @@ abstract class BaseAppointmentNotification extends Notification
     /** @return array{title: string, message: string, icon: string, tone: string, url: string} */
     abstract public function payload(): array;
 
+    /**
+     * Where "View Appointment" goes.
+     *
+     * My Appointments with the details dialog already open, rather than the
+     * retired standalone page. The dialog is the only place the detail now
+     * lives, so a link that opened anything else would show less than the
+     * subject line promises — and a link to `/appointments/{id}` would bounce
+     * through a redirect before getting there.
+     */
+    protected function detailsUrl(): string
+    {
+        return route('appointments.index', ['view' => $this->appointment->id]);
+    }
+
     public function toArray(object $notifiable): array
     {
         return $this->payload() + [

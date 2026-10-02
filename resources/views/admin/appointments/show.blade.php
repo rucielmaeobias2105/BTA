@@ -23,26 +23,32 @@
     <div class="grid gap-6 xl:grid-cols-3">
         {{-- Left column --}}
         <div class="space-y-6 xl:col-span-2">
-            {{-- Status update (Approve / Decline / Update Status) --}}
+            {{-- Status update. These post to the same route the list's dropdown
+                 does, so they honour the same transition table: a button the
+                 server would refuse is disabled rather than left to fail. --}}
             <x-ui.card title="Update Status" subtitle="Changes are logged to the status history and the customer is notified.">
                 <form method="POST" action="{{ route('admin.appointments.status', $appointment) }}" class="space-y-4">
                     @csrf
                     @method('PATCH')
 
                     <div class="flex flex-wrap gap-2">
-                        @foreach (['confirmed' => 'Approve / Confirm', 'in_progress' => 'Start (In Progress)', 'completed' => 'Mark Completed', 'cancelled' => 'Decline / Cancel'] as $value => $label)
-                            @php $active = $appointment->status->value === $value; @endphp
+                        @foreach (['confirmed' => 'Approve / Confirm', 'in_progress' => 'Start (In Progress)', 'completed' => 'Mark Completed', 'declined' => 'Decline'] as $value => $label)
+                            @php
+                                $target = App\Enums\AppointmentStatus::resolveAction($value);
+                                $active = $appointment->status === $target;
+                                $reachable = $appointment->status->canTransitionTo($target);
+                            @endphp
                             <button
                                 type="submit"
                                 name="status"
                                 value="{{ $value }}"
-                                @disabled($active)
+                                @disabled($active || ! $reachable)
                                 @class([
                                     'btn-sm',
                                     'btn-primary' => ! $active && $value === 'confirmed',
                                     'btn-gold' => ! $active && $value === 'in_progress',
                                     'btn-ghost' => ! $active && $value === 'completed',
-                                    'btn-danger' => ! $active && $value === 'cancelled',
+                                    'btn-danger' => ! $active && $value === 'declined',
                                 ])
                             >{{ $label }}</button>
                         @endforeach
@@ -74,7 +80,7 @@
                     </div>
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wider text-ink-muted">Status</dt>
-                        <dd class="mt-1"><x-ui.badge :status="$appointment->down_payment_status->badge()" :label="$appointment->down_payment_status->label()" /></dd>
+                        <dd class="mt-1"><x-ui.badge :status="$appointment->downPaymentBadgeTone()" :label="$appointment->downPaymentLabel()" /></dd>
                     </div>
                 </dl>
 
@@ -85,7 +91,12 @@
                         <x-ui.form.select
                             name="down_payment_status"
                             label="Set verification status"
-                            :value="$appointment->down_payment_status->value"
+                            {{-- Blank rather than the stored value when the stored value is
+                                 not one this select offers: the stored value cannot be
+                                 selected anyway, so no option would render as chosen and
+                                 saving here writes a real case — which is how an
+                                 unrecognised status gets fixed. --}}
+                            :value="$appointment->down_payment_status?->value ?? ''"
                             :options="$downPaymentOptions"
                         />
                     </div>
@@ -114,7 +125,7 @@
                         <dt class="text-xs font-semibold uppercase tracking-wider text-ink-muted">Schedule</dt>
                         <dd class="mt-1 font-medium text-primary">{{ $appointment->preferred_date->format('l, M j, Y') }}</dd>
                         <dd class="text-sm text-ink-muted">{{ $appointment->time_label }} · {{ $appointment->total_duration }} min total</dd>
-                        <dd class="text-sm text-ink-muted">Stylist: {{ $appointment->preferredStylist?->full_name ?? 'No preference' }}</dd>
+                        <dd class="text-sm text-ink-muted">Technician: {{ $appointment->technicianLabel() }}</dd>
                     </div>
 
                     <div class="sm:col-span-2">
@@ -125,6 +136,12 @@
                                     <div class="min-w-0">
                                         <p class="font-medium text-ink">{{ $line->display_name }}</p>
                                         <p class="text-xs text-ink-muted">{{ $line->duration_minutes }} min &middot; Qty {{ $line->quantity }}</p>
+                                        {{-- The price as it was advertised when booked,
+                                             which may be a range like "249/499". The
+                                             figure on the right is what was charged. --}}
+                                        <p class="text-xs text-ink-muted">
+                                            {{ \App\Support\PriceFormatter::display($line->display_price) }} each
+                                        </p>
                                     </div>
                                     <p class="shrink-0 font-semibold text-primary">₱{{ number_format($line->line_total, 2) }}</p>
                                 </li>
@@ -175,14 +192,6 @@
                     </ol>
                 @endif
             </x-ui.card>
-
-            @if ($appointment->review->isNotEmpty())
-                @php $review = $appointment->review->first(); @endphp
-                <x-ui.card title="Customer Review">
-                    <x-ui.star-rating :value="$review->rating" :interactive="false" />
-                    <p class="mt-3 text-sm text-ink">{{ $review->message }}</p>
-                </x-ui.card>
-            @endif
         </aside>
     </div>
 @endsection

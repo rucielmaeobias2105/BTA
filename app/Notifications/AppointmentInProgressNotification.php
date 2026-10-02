@@ -11,7 +11,7 @@ class AppointmentInProgressNotification extends BaseAppointmentNotification
             'message' => 'Your '.$this->appointment->service_names.' appointment is now in progress. Enjoy!',
             'icon' => 'sparkles',
             'tone' => 'progress',
-            'url' => route('appointments.show', $this->appointment),
+            'url' => $this->detailsUrl(),
         ];
     }
 }

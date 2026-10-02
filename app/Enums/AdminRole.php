@@ -2,19 +2,25 @@
 
 namespace App\Enums;
 
+/**
+ * The salon has exactly three kinds of visitor, and only one of them is an
+ * admin: `admin` (this enum, the `admins` table), `customer` (the `users`
+ * table, which carries no role column) and `guest` (nobody signed in).
+ *
+ * There is deliberately no manager or staff tier. The panel used to split into
+ * Super Admin / Manager / Staff, but the salon runs it as one account, so the
+ * extra tiers only added ways to lock a real user out of a screen they need.
+ * `AdminRole` therefore keeps its name and its ability table — the `admin.role:*`
+ * middleware and the `@can` directives still read from it, so authorisation
+ * stays server-side — but there is a single case holding every ability.
+ */
 enum AdminRole: string
 {
-    case SuperAdmin = 'super_admin';
-    case Manager = 'manager';
-    case Staff = 'staff';
+    case Admin = 'admin';
 
     public function label(): string
     {
-        return match ($this) {
-            self::SuperAdmin => 'Super Admin',
-            self::Manager => 'Manager',
-            self::Staff => 'Staff',
-        };
+        return 'Administrator';
     }
 
     /**
@@ -33,20 +39,16 @@ enum AdminRole: string
         return [
             'dashboard.view',
             'appointments.manage',
-            'calendar.view',
-            'calendar.manage',
             'catalog.view',
             'catalog.manage',
+            'technicians.view',
+            'technicians.manage',
             'inventory.view',
             'inventory.manage',
             'tags.manage',
             'users.view',
-            'users.manage',
-            'users.delete',
             'terms.view',
             'terms.manage',
-            'reviews.view',
-            'reviews.manage',
             'reports.view',
             'promos.manage',
             'messages.manage',
@@ -54,50 +56,15 @@ enum AdminRole: string
     }
 
     /**
-     * Abilities granted to a role. Super Admin implicitly holds them all, so
-     * new abilities only ever need wiring up once.
+     * Abilities held by the role. With one role this is every ability, and it
+     * stays a method rather than an inline `return self::abilities()` so a
+     * future tier has an obvious place to land.
      *
      * @return array<int, string>
      */
     public static function abilitiesFor(self $role): array
     {
-        return match ($role) {
-            self::SuperAdmin => self::abilities(),
-
-            // Runs the salon day to day, but may not edit legal text or
-            // destroy customer records.
-            self::Manager => [
-                'dashboard.view',
-                'appointments.manage',
-                'calendar.view',
-                'calendar.manage',
-                'catalog.view',
-                'catalog.manage',
-                'inventory.view',
-                'inventory.manage',
-                'tags.manage',
-                'users.view',
-                'users.manage',
-                'terms.view',
-                'reviews.view',
-                'reviews.manage',
-                'reports.view',
-                'promos.manage',
-                'messages.manage',
-            ],
-
-            // Therapists: work the appointment queue, everything else is
-            // read-only reference.
-            self::Staff => [
-                'dashboard.view',
-                'appointments.manage',
-                'calendar.view',
-                'catalog.view',
-                'inventory.view',
-                'users.view',
-                'reviews.view',
-            ],
-        };
+        return self::abilities();
     }
 
     public function can(string $ability): bool

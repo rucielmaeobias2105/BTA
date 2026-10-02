@@ -33,7 +33,19 @@ class EnsureAdminRole
                 ? substr($ability, strlen('admin.'))
                 : $ability;
 
-            if (! $admin?->role->can($ability)) {
+            /*
+             * `?->` on the role as well as the admin.
+             *
+             * `AuthenticateAdmin` runs first on every admin route and refuses
+             * anyone the `admin` guard does not recognise, so `$admin` is always
+             * an Admin by the time this is reached in normal traffic — which is
+             * why `$admin?->role` was enough. But a model without a `role` (a
+             * customer resolved onto this guard, say) would otherwise die here
+             * with a 500 on the way to what should be a 403. Refusing is the
+             * correct answer for anything that is not an admin holding the
+             * ability, and a missing role is exactly that.
+             */
+            if (! $admin?->role?->can($ability)) {
                 abort(403, 'Your admin role does not have access to this area.');
             }
         }

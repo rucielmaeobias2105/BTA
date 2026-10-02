@@ -14,8 +14,8 @@
             eyebrow="Policies"
             :title="$category->label().' Terms & Conditions'"
             :description="$terms
-                ? 'Currently published version '.$terms->version.' — last updated '.$terms->published_at?->format('M j, Y').'.'
-                : 'No published version for this category yet. Please check back soon.'"
+                ? 'Last updated '.$terms->published_at?->format('M j, Y').'.'
+                : 'This policy has not been published yet. Please check back soon.'"
         />
 
         <div class="grid gap-5 sm:grid-cols-3">
@@ -32,9 +32,17 @@
 
         <article class="bta-card mt-8 p-6 sm:p-10">
             @if ($terms)
-                {{-- Admin-authored rich text (Admin Flow 10). Stored as HTML. --}}
-                <div class="prose-bta max-w-none text-sm leading-relaxed text-ink [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-primary [&_h2]:mb-4 [&_h3]:mt-6 [&_h3]:font-semibold [&_h3]:text-primary [&_hr]:my-6 [&_li]:ml-5 [&_li]:list-disc [&_ol]:list-decimal [&_p]:mb-4 [&_strong]:font-semibold [&_strong]:text-primary [&_ul]:mb-4">
-                    {!! $terms->content !!}
+                {{--
+                    The same `TermsRenderer::numbered()` the modal uses, so this
+                    page and the dialog a customer normally sees are the same
+                    document rather than two renderings of it that could drift.
+
+                    This page is the no-JavaScript floor under the dialog and the
+                    shareable deep link, not the primary way anyone reads the
+                    terms — every in-app link opens the modal instead.
+                --}}
+                <div class="max-w-none text-sm leading-relaxed text-ink">
+                    {!! \App\Support\TermsRenderer::numbered($terms->content) !!}
                 </div>
             @else
                 <x-ui.empty

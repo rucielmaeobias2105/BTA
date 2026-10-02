@@ -30,13 +30,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         foreach (AdminRole::abilities() as $ability) {
-            // The nullable ?Admin parameter matters: Gate only calls a
-            // callback for a guest when its first parameter is nullable.
-            // Without it every gate would be denied, because the panel
-            // authenticates on the `admin` guard while Gate resolves its user
-            // from the default (`web`) guard. The admin is therefore read
-            // from that guard explicitly rather than from the argument.
-            Gate::define('admin.'.$ability, function (?Admin $admin) use ($ability): bool {
+            // The parameter is untyped and defaults to null on purpose. Gate
+            // passes the *default* guard's user as the first argument, and the
+            // default guard here is the customer `web` guard — so as soon as
+            // somebody is signed in as a customer, that argument is a User, and
+            // a `?Admin` hint would fatal with a TypeError before this body
+            // ever ran. Keeping it untyped means Gate can still evaluate the
+            // gate for a guest, and the decision reads the guard that actually
+            // owns the panel.
+            Gate::define('admin.'.$ability, function ($admin = null) use ($ability): bool {
                 $admin = Auth::guard('admin')->user();
 
                 return $admin instanceof Admin && $admin->role->can($ability);

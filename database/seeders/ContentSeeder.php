@@ -2,73 +2,29 @@
 
 namespace Database\Seeders;
 
-use App\Models\Admin;
-use App\Models\BlockedDate;
 use App\Models\ContactMessage;
 use App\Models\Promo;
-use App\Models\Service;
-use App\Models\SalonSetting;
 use Illuminate\Database\Seeder;
 
 class ContentSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->seedBlockedDates();
         $this->seedPromos();
         $this->seedMessages();
     }
 
-    /**
-     * Admin Flow 8 — demo closures that the booking form must reject.
+    /*
+     * `seedBlockedDates()` used to live here: four demo closures that the booking
+     * form had to reject, so the "this date is unavailable" path was visible in
+     * development. It went with the Calendar & Blocked Dates feature, along with
+     * the only thing that could create those rows.
+     *
+     * Operating hours are still seeded — `SalonSetting::current()` creates them on
+     * first use — and a closed weekday still exercises the same "no slots here"
+     * path in the booking form. That is the replacement for the demo closures:
+     * not a fabricated block, but a real reason a date can be unavailable.
      */
-    protected function seedBlockedDates(): void
-    {
-        $admin = Admin::where('role', 'super_admin')->first();
-        $settings = SalonSetting::current();
-
-        $blocks = [
-            ['offset' => 9, 'service' => null, 'reason' => 'Provincial holiday — salon closed'],
-            ['offset' => 23, 'service' => null, 'reason' => 'Team training day'],
-            ['offset' => 30, 'service' => 'Volume Lash Extensions', 'reason' => 'Lash stock delivery delayed'],
-        ];
-
-        foreach ($blocks as $block) {
-            $date = today()->addDays($block['offset']);
-
-            // Never block a day we are already closed on — pick the next open day.
-            while (! $settings->isOpenOn($date)) {
-                $date->addDay();
-            }
-
-            $service = $block['service'] ? Service::where('name', $block['service'])->first() : null;
-
-            BlockedDate::updateOrCreate(
-                ['start_date' => $date->toDateString(), 'service_id' => $service?->id],
-                [
-                    'end_date' => $date->toDateString(),
-                    'reason' => $block['reason'],
-                    'created_by' => $admin?->id,
-                ],
-            );
-        }
-
-        // A three-day block to exercise the range form.
-        $rangeStart = today()->addDays(45);
-
-        while (! $settings->isOpenOn($rangeStart)) {
-            $rangeStart->addDay();
-        }
-
-        BlockedDate::updateOrCreate(
-            ['start_date' => $rangeStart->toDateString(), 'service_id' => null],
-            [
-                'end_date' => $rangeStart->copy()->addDays(2)->toDateString(),
-                'reason' => 'Inventory audit and deep clean',
-                'created_by' => $admin?->id,
-            ],
-        );
-    }
 
     /**
      * Admin Flow 13 — promos. One active, one upcoming, one expired.

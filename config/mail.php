@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\SmtpScheme;
+
 return [
 
     /*
@@ -39,7 +41,26 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+
+            /*
+             * `scheme`, not `encryption`.
+             *
+             * Laravel 11 dropped the `encryption` key from the SMTP mailer and
+             * reads `scheme` instead. So `MAIL_ENCRYPTION=tls` — the setting every
+             * pre-Laravel-11 guide recommends — would be read by nothing, and the
+             * transport would fall back to its port-derived default while the
+             * setting looked like it worked.
+             *
+             * `SmtpScheme` maps the familiar name onto the one the transport reads:
+             * `tls` -> `smtp` (STARTTLS, port 587), `ssl` -> `smtps` (port 465).
+             * With both variables unset the scheme stays null and Laravel derives
+             * it from the port, which is the behaviour that was already relied on.
+             */
+            'scheme' => SmtpScheme::forEncryption(
+                env('MAIL_ENCRYPTION'),
+                env('MAIL_SCHEME'),
+            ),
+
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),

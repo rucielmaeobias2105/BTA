@@ -4,7 +4,7 @@
 
 @section('content')
     <div class="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
-        <a href="{{ route('appointments.show', $appointment) }}" class="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition hover:text-primary">
+        <a href="{{ route('appointments.index', ['view' => $appointment->id]) }}" class="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition hover:text-primary">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
             Back to appointment
         </a>
@@ -15,7 +15,6 @@
             description="Tell us why you'd like to cancel. This cannot be undone."
         />
 
-        <x-ui.errors />
 
         {{-- Reference auto-filled from context (read-only) --}}
         <div class="bta-card mb-6 p-5">
@@ -66,17 +65,32 @@
             </x-ui.card>
 
             <x-ui.card title="Cancellation Policy" accent="maroon">
-                @if ($policy)
-                    <div class="max-h-64 space-y-3 overflow-y-auto pr-2 text-sm leading-relaxed text-ink [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-primary [&_h3]:mt-4 [&_h3]:font-semibold [&_h3]:text-primary [&_li]:ml-4 [&_li]:list-disc [&_ol]:list-decimal [&_p]:mb-2">
-                        {!! $policy->content !!}
-                    </div>
-                    <p class="mt-4 text-xs text-ink-muted">Version {{ $policy->version }} &middot; published {{ $policy->published_at?->format('M j, Y') }}</p>
-                @else
-                    <p class="text-sm text-ink-muted">
+                {{--
+                    The policy is a dialog now, not a block of text on the page.
+
+                    It used to be inlined here in a `max-h-64` scroll box, which
+                    meant the customer was looking at a wall of policy *and* the
+                    reason field *and* the confirm button — with the thing they
+                    were being asked to agree to competing with the form for
+                    attention. `x-terms.modal` is mounted by the layout, so all
+                    this card needs is a way in, and the "not published yet"
+                    branch now belongs inside the dialog too: an unpublished
+                    policy is a fact about the salon, and saying it here next to
+                    an empty card was worse than saying it where the customer was
+                    looking.
+                --}}
+                <p class="text-sm text-ink-muted">
+                    @if ($policy)
+                        Read the full policy before you go ahead — the 24-hour
+                        window and what happens after it are worth knowing first.
+                    @else
                         Our cancellation policy has not been published yet.
-                        <a href="{{ route('terms.show', 'cancellation') }}" target="_blank" rel="noopener" class="font-medium text-primary underline underline-offset-2">Read the policy</a>.
-                    </p>
-                @endif
+                    @endif
+
+                    <x-terms.link :category="'cancellation'">
+                        {{ $policy ? 'Read the Cancellation Policy' : 'Read the policy' }}
+                    </x-terms.link>
+                </p>
             </x-ui.card>
 
             <x-ui.card title="Confirmation">
@@ -87,14 +101,13 @@
                     hint="I understand the consequences of cancelling this appointment."
                 >
                     I agree to the
-                    <a href="{{ route('terms.show', 'cancellation') }}" target="_blank" rel="noopener"
-                       class="font-medium text-primary underline underline-offset-2 hover:text-primary-dark">Cancellation Policy</a>.
+                    <x-terms.link :category="'cancellation'">Cancellation Policy</x-terms.link>.
                 </x-ui.form.checkbox>
             </x-ui.card>
 
             <div class="flex flex-col gap-3 sm:flex-row-reverse">
                 <button type="submit" class="btn-danger sm:min-w-44">Cancel Appointment</button>
-                <a href="{{ route('appointments.show', $appointment) }}" class="btn-ghost sm:min-w-44">Keep Appointment</a>
+                <a href="{{ route('appointments.index', ['view' => $appointment->id]) }}" class="btn-ghost sm:min-w-44">Keep Appointment</a>
             </div>
         </form>
     </div>

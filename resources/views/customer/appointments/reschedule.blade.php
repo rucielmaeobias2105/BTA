@@ -4,12 +4,14 @@
 
 @section('content')
     @php
+        // Tomorrow, not today: same-day bookings are not accepted. The server
+        // re-checks this in RescheduleRequest.
         $minDate = $availability->firstBookableDate()->toDateString();
         $maxDate = $availability->lastBookableDate()->toDateString();
     @endphp
 
     <div class="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
-        <a href="{{ route('appointments.show', $appointment) }}" class="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition hover:text-primary">
+        <a href="{{ route('appointments.index', ['view' => $appointment->id]) }}" class="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition hover:text-primary">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
             Back to appointment
         </a>
@@ -20,7 +22,6 @@
             description="Pick a new date and time. Your new slot is re-validated against our calendar."
         />
 
-        <x-ui.errors />
 
         {{-- Current date/time — read-only --}}
         <div class="bta-card mb-6 border-l-4 border-l-gold p-5">
@@ -35,6 +36,12 @@
                 'slots' => $slots,
                 'url' => route('appointments.slots'),
                 'serviceId' => $serviceId,
+                'minDate' => $minDate,
+                'maxDate' => $maxDate,
+                // Was this appointment's service-scoped blocked-date map. Empty
+                // now that the Calendar & Blocked Dates feature is gone; kept so
+                // the client's shape does not change.
+                'blockedDates' => (object) [],
             ];
         @endphp
 
@@ -60,6 +67,7 @@
                         :min="$minDate"
                         :max="$maxDate"
                         x-model="date"
+                        x-bind:min="minDate"
                     />
 
                     <div>
@@ -92,32 +100,32 @@
                 </div>
             </x-ui.card>
 
-            @if ($blockedRanges !== [])
-                <div class="mt-6 rounded-card border border-status-low-stock/25 bg-status-low-stock-bg/40 p-5">
-                    <p class="text-sm font-semibold text-status-low-stock">Dates we are closed</p>
-                    <ul class="mt-2 space-y-1 text-xs text-ink">
-                        @foreach ($blockedRanges as $block)
-                            <li>
-                                <span class="font-medium text-primary">{{ $block['label'] }}</span>
-                                — {{ $block['service_id'] === null ? 'Salon closed' : $block['service'].' unavailable' }}
-                                @if ($block['reason'])<span class="text-ink-muted">({{ $block['reason'] }})</span>@endif
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+            {{-- No closure list here any more.
 
-            @if ($policy)
-                <x-ui.card title="Rescheduling Policy" class="mt-6">
-                    <div class="max-h-48 space-y-2 overflow-y-auto pr-2 text-sm leading-relaxed text-ink [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-primary [&_h3]:mt-3 [&_h3]:font-semibold [&_h3]:text-primary [&_li]:ml-4 [&_li]:list-disc">
-                        {!! $policy->content !!}
-                    </div>
-                </x-ui.card>
-            @endif
+                 This used to print the salon's blocked dates and their reasons as
+                 prose, under a heading reading "Dates we are closed". It went with
+                 the Calendar & Blocked Dates feature, and with it went the ability
+                 to block a date at all — a closure is now expressed through the
+                 salon's operating hours, which the slot list already reflects: a
+                 closed weekday simply comes back with no slots.
+             --}}
+
+            {{--
+                A way in to the policy rather than the policy itself, for the
+                same reason the cancel page stopped inlining it: the dialog is
+                mounted by the layout, and a wall of rescheduling rules sitting
+                above the confirm button is a worse read than a link next to the
+                checkbox the customer is about to tick.
+            --}}
+            <p class="mt-6 text-sm text-ink-muted">
+                Moving an appointment is free up to 24 hours beforehand, subject
+                to availability.
+                <x-terms.link :category="'rescheduling'">Read the Rescheduling Policy</x-terms.link>
+            </p>
 
             <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
                 <button type="submit" class="btn-primary sm:min-w-44">Confirm Reschedule</button>
-                <a href="{{ route('appointments.show', $appointment) }}" class="btn-ghost sm:min-w-44">Keep Current Slot</a>
+                <a href="{{ route('appointments.index', ['view' => $appointment->id]) }}" class="btn-ghost sm:min-w-44">Keep Current Slot</a>
             </div>
         </form>
     </div>
@@ -136,6 +144,14 @@
                 url: '',
                 serviceId: null,
 
+                // Date rules, mirroring the booking form. `minDate` binds the
+                // date input's `min`. `blockedDates` is kept and always empty —
+                // it was this appointment's service-scoped blocked-date map, and
+                // the feature that filled it is gone.
+                minDate: '',
+                maxDate: '',
+                blockedDates: {},
+
                 init() {
                     const node = document.getElementById('bta-reschedule-config');
                     const config = node ? JSON.parse(node.textContent) : {};
@@ -144,12 +160,14 @@
                     this.slots = config.slots || [];
                     this.url = config.url || '';
                     this.serviceId = config.serviceId || null;
+                    this.minDate = config.minDate || '';
+                    this.maxDate = config.maxDate || '';
 
                     this.$watch('date', () => this.load());
                 },
 
                 async load() {
-                    if (!this.date) return;
+                    if (!this.date || !this.url) return;
 
                     this.loading = true;
 
@@ -168,6 +186,8 @@
                         const data = await response.json();
 
                         this.slots = data.slots || [];
+                        if (data.minDate) this.minDate = data.minDate;
+                        if (data.maxDate) this.maxDate = data.maxDate;
                     } catch (error) {
                         this.slots = [];
                     } finally {

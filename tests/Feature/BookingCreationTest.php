@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\AppointmentStatus;
 use App\Enums\DownPaymentStatus;
 use App\Models\Appointment;
-use App\Models\BlockedDate;
 use App\Models\ServiceVariant;
 use App\Notifications\AppointmentBookedNotification;
 use App\Services\BookingAvailability;
@@ -63,14 +62,26 @@ class BookingCreationTest extends TestCase
         $user = $this->makeUser();
         $service = $this->makeService(['price' => 600]);
 
-        $response = $this->actingAs($user)->post('/book', $this->payload([
+        $payload = $this->payload([
             'services' => [['service_id' => $service->id, 'quantity' => 1]],
-        ]));
+        ]);
+
+        // Deposits are off by default now — the booking form does not ask for a
+        // GCash reference. Turn the setting on explicitly so this still covers
+        // the branch `BookingService` takes when a booking *does* arrive with a
+        // reference, which legacy and admin-created rows still do.
+        //
+        // After `payload()`, not before: it reaches `bookableDate()` →
+        // `makeSalonSettings()`, which resets the flag to the shipping default,
+        // so an earlier `update` is silently undone.
+        $this->makeSalonSettings()->update(['down_payment_required' => true]);
+
+        $response = $this->actingAs($user)->post('/book', $payload);
 
         $appointment = Appointment::first();
 
         $this->assertNotNull($appointment);
-        $response->assertRedirect(route('appointments.show', $appointment));
+        $response->assertRedirect(route('appointments.index', ['view' => $appointment->id]));
 
         $this->assertSame($user->id, $appointment->user_id);
         $this->assertSame('Juan Dela Cruz', $appointment->customer_name);
@@ -80,6 +91,32 @@ class BookingCreationTest extends TestCase
         $this->assertSame('GCASH1234567890', $appointment->down_payment_reference);
         $this->assertSame(DownPaymentStatus::Unverified, $appointment->down_payment_status);
         $this->assertEquals(300, (float) $appointment->down_payment_amount);
+    }
+
+    /**
+     * With deposits off — the shipping default — a booking that carries no
+     * reference is stored as `NotRequired` with no amount.
+     *
+     * The mirror image of the case above, and the one the form now always takes.
+     * Asserted separately so the two branches cannot be collapsed into one by a
+     * change to `BookingService`.
+     */
+    public function test_a_booking_with_deposits_off_is_stored_as_not_required(): void
+    {
+        Notification::fake();
+        $service = $this->makeService(['price' => 600]);
+
+        $this->actingAs($this->makeUser())->post('/book', $this->payload([
+            'services' => [['service_id' => $service->id, 'quantity' => 1]],
+            'down_payment_reference' => null,
+        ]))->assertSessionHasNoErrors();
+
+        $appointment = Appointment::sole();
+
+        $this->assertSame(DownPaymentStatus::NotRequired, $appointment->down_payment_status);
+        $this->assertNull($appointment->down_payment_reference);
+        $this->assertNull($appointment->down_payment_amount);
+        $this->assertEquals(600, (float) $appointment->total_amount);
     }
 
     public function test_a_guest_must_log_in_before_booking(): void
@@ -141,6 +178,7 @@ class BookingCreationTest extends TestCase
             'service_id' => $service->id,
             'name' => 'Long Hair',
             'price' => 550,
+            'base_price' => 550,
             'duration_minutes' => 90,
             'is_default' => false,
         ]);
@@ -188,12 +226,62 @@ class BookingCreationTest extends TestCase
         $this->assertDatabaseCount('appointments', 0);
     }
 
-    public function test_a_down_payment_reference_is_required_when_configured(): void
+    /**
+     * A booking goes through without any down payment reference.
+     *
+     * This used to be the opposite: the form asked for a GCash reference and
+     * `StoreBookingRequest` refused the submission without one whenever the
+     * salon had `down_payment_required` on, which it did by default. The salon
+     * takes no deposit for a web booking now, so the requirement went with the
+     * field.
+     *
+     * Asserted in the shape that actually matters — the booking is created, not
+     * merely that no error was raised — because "no validation error" and "the
+     * customer got an appointment" are different claims, and only the second one
+     * is the thing that broke when the field was removed without this rule.
+     */
+    public function test_a_booking_needs_no_down_payment_reference(): void
     {
-        $this->post('/book', $this->payload(['down_payment_reference' => null]))
-            ->assertSessionHasErrors('down_payment_reference');
+        $response = $this->post('/book', $this->payload(['down_payment_reference' => null]));
 
-        $this->assertDatabaseCount('appointments', 0);
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('appointments', 1);
+
+        // Stored with nothing to verify, which is what `BookingService` decides.
+        $appointment = \App\Models\Appointment::sole();
+
+        $this->assertNull($appointment->down_payment_reference);
+        $this->assertNull($appointment->down_payment_amount);
+        $this->assertSame(\App\Enums\DownPaymentStatus::NotRequired, $appointment->down_payment_status);
+    }
+
+    /**
+     * …and the rule is not reinstated by turning the salon setting back on.
+     *
+     * The old check keyed off `down_payment_required`. Had it been left in place
+     * behind a flag, a salon that re-enabled the setting would have found every
+     * booking failing on a field the form no longer shows — a payment error
+     * message with no payment field to fix it with.
+     */
+    public function test_a_booking_still_needs_no_reference_when_the_setting_is_switched_on(): void
+    {
+        $this->makeSalonSettings()->update(['down_payment_required' => true]);
+
+        $this->post('/book', $this->payload(['down_payment_reference' => null]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('appointments', 1);
+    }
+
+    /** A reference that *is* posted is still accepted and still recorded. */
+    public function test_a_supplied_reference_is_still_stored(): void
+    {
+        $this->post('/book', $this->payload(['down_payment_reference' => '09123456789']))
+            ->assertSessionHasNoErrors();
+
+        $appointment = \App\Models\Appointment::sole();
+
+        $this->assertSame('09123456789', $appointment->down_payment_reference);
     }
 
     public function test_a_past_date_is_rejected(): void
@@ -226,25 +314,6 @@ class BookingCreationTest extends TestCase
         $this->assertDatabaseCount('appointments', 0);
     }
 
-    public function test_a_blocked_date_is_rejected(): void
-    {
-        $date = $this->bookableDate();
-        $service = $this->makeService();
-
-        BlockedDate::create([
-            'start_date' => $date,
-            'end_date' => $date,
-            'service_id' => null,
-            'reason' => 'Provincial holiday',
-        ]);
-
-        $this->post('/book', $this->payload([
-            'preferred_date' => $date,
-            'services' => [['service_id' => $service->id, 'quantity' => 1]],
-        ]))->assertSessionHasErrors('preferred_date');
-
-        $this->assertDatabaseCount('appointments', 0);
-    }
 
     public function test_a_slot_already_taken_is_rejected(): void
     {
@@ -336,31 +405,5 @@ class BookingCreationTest extends TestCase
         $this->assertContains('10:00', $response->json('slots'));
     }
 
-    public function test_the_slot_lookup_endpoint_reports_a_blocked_date(): void
-    {
-        $date = $this->bookableDate();
 
-        BlockedDate::create([
-            'start_date' => $date,
-            'end_date' => $date,
-            'reason' => 'Maintenance',
-        ]);
-
-        $this->getJson('/book/slots?date='.$date)
-            ->assertOk()
-            ->assertJsonPath('open', false)
-            ->assertJsonPath('slots', []);
-    }
-
-    public function test_availability_treats_a_single_day_block_as_a_closed_date(): void
-    {
-        $availability = BookingAvailability::make();
-        $date = $this->bookableDate();
-
-        $this->assertTrue($availability->isDateAvailable($date));
-
-        BlockedDate::create(['start_date' => $date, 'end_date' => $date]);
-
-        $this->assertFalse($availability->isDateAvailable($date));
-    }
 }

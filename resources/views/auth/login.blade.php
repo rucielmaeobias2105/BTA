@@ -1,8 +1,14 @@
-@extends('layouts.guest')
+@extends('layouts.auth')
 
 @section('title', 'Log In')
 
 @section('content')
+    <div class="mb-6">
+        <x-ui.button :href="route('home')" variant="ghost" size="sm" icon="heroicon-o-arrow-left">
+            Back to Home
+        </x-ui.button>
+    </div>
+
     {{-- Tabs: the reference puts sign-in and registration on one surface. --}}
     <nav class="auth-tabs" aria-label="Authentication">
         <a href="{{ route('login') }}" class="auth-tab auth-tab-active" aria-current="page">Login</a>
@@ -14,7 +20,6 @@
         Log in to your account to book appointments and manage your bookings.
     </p>
 
-    <x-ui.errors />
 
     <form method="POST" action="{{ route('login') }}" class="mt-6 space-y-4" novalidate>
         @csrf
@@ -27,7 +32,19 @@
             autocomplete="username"
         />
 
-        <x-ui.form.password name="password" label="Password" required autocomplete="current-password" />
+        {{-- The eye toggle, not the text link: this is the form a customer is most
+                     likely to mistype into, and seeing what was typed before
+                     pressing Log In is the whole point. `data-password-toggle-for`
+                     is what `initPasswordToggles()` binds on — see the note in
+                     `resources/js/app.js` for why that name matters. --}}
+        <x-ui.form.password
+            name="password"
+            label="Password"
+            icon="heroicon-o-lock-closed"
+            :toggle-icon="'heroicon-o-eye'"
+            required
+            autocomplete="current-password"
+        />
 
         <div class="flex items-center justify-between gap-3 pt-1">
             <x-ui.form.checkbox name="remember" value="1" label="Remember me" class="mb-0" />

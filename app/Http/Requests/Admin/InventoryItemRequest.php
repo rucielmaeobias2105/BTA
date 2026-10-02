@@ -2,11 +2,25 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Enums\ItemTag;
-use App\Models\InventoryItem;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
+/**
+ * Validation for the inventory item form.
+ *
+ * The form is four fields — name, date in, expiry date and quantity — so that is
+ * exactly what is validated here.
+ *
+ * Three columns are written without being fields. The SKU is derived from the
+ * name by the model on create. The unit is `pcs`, because the salon counts stock
+ * in pieces rather than choosing per item. The category is
+ * `InventoryItem::DEFAULT_CATEGORY`, because it used to ask the admin to file
+ * stock under a second, parallel set of category names — one for the catalogue,
+ * one for the shelf — that nothing kept in step with each other.
+ *
+ * Reorder threshold, supplier, notes, the status tag, the Active switch and the
+ * linked-service picker are gone from the form too, so nothing typed for them is
+ * honoured either.
+ */
 class InventoryItemRequest extends FormRequest
 {
     public function authorize(): bool
@@ -15,32 +29,28 @@ class InventoryItemRequest extends FormRequest
     }
 
     /**
+     * The columns the form writes. Anything else on the request is ignored by
+     * `safe()->only(...)` in the controller, so a crafted post cannot set a
+     * column the admin can no longer see — which is what `unit` and `category`
+     * have become.
+     *
+     * @return array<int, string>
+     */
+    public static function fields(): array
+    {
+        return ['name', 'date_in', 'expiry_date', 'quantity'];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
     {
-        $itemId = $this->route('inventory_item')?->id;
-
         return [
             'name' => ['required', 'string', 'max:150'],
-            'sku' => [
-                'required', 'string', 'max:64',
-                Rule::unique('inventory_items', 'sku')->ignore($itemId)->whereNull('deleted_at'),
-            ],
-            'category' => ['required', 'string', 'max:80'],
+            'date_in' => ['required', 'date'],
+            'expiry_date' => ['nullable', 'date', 'after_or_equal:date_in'],
             'quantity' => ['required', 'numeric', 'min:0', 'max:9999999'],
-            'unit' => ['required', 'string', Rule::in(InventoryItem::UNITS)],
-            'reorder_threshold' => ['required', 'numeric', 'min:0', 'max:9999999'],
-            'supplier' => ['nullable', 'string', 'max:150'],
-            'status_tag' => ['nullable', 'string', Rule::in(ItemTag::values())],
-            'notes' => ['nullable', 'string', 'max:2000'],
-            'is_active' => ['nullable', 'boolean'],
-
-            // Linked services (many-to-many) — which services consume this item.
-            'services' => ['nullable', 'array'],
-            'services.*' => ['integer', Rule::exists('services', 'id')->whereNull('deleted_at')],
-            'quantities' => ['nullable', 'array'],
-            'quantities.*' => ['nullable', 'numeric', 'min:0', 'max:9999'],
         ];
     }
 
@@ -50,14 +60,13 @@ class InventoryItemRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'unit.in' => 'Please choose a valid unit of measure.',
+            'expiry_date.after_or_equal' => 'The expiry date cannot be before the date it came in.',
         ];
     }
 
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'sku' => strtoupper(trim((string) $this->input('sku'))),
             'name' => trim((string) $this->input('name')),
         ]);
     }

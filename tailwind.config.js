@@ -20,6 +20,41 @@ export default {
         './resources/**/*.blade.php',
         './resources/**/*.js',
     ],
+    /*
+     * The admin row-action tones are composed in a Blade component
+     * (`x-ui.icon-action`), where the full class name is assembled at runtime
+     * from a `tone` prop. The content scanner only ever sees the `icon-action-`
+     * prefix, so the four tones have to be named here or they are purged from
+     * the build and every row action renders unstyled.
+     *
+     * The appointments list's status dropdown has the same shape: the tone comes
+     * from `$appointment->status->badge()`, so only the `status-select-` prefix
+     * appears in any template.
+     *
+     * And the Terms & Conditions list is the same problem one step further
+     * removed: `App\Support\TermsRenderer` builds its markup in PHP, so the
+     * class names appear in *no* template at all and the scanner has nothing to
+     * match. Without these the numbered list renders as unstyled paragraphs in
+     * both the modal and the standalone page.
+     */
+    safelist: [
+        'icon-action-primary',
+        'icon-action-secondary',
+        'icon-action-danger',
+        'icon-action-ghost',
+        'icon-action-info',
+        'status-select-pending',
+        'status-select-confirmed',
+        'status-select-in_progress',
+        'status-select-completed',
+        'status-select-cancelled',
+        'terms-list',
+        'terms-list__item',
+        'terms-list__title',
+        'terms-list__intro',
+        'terms-list__after',
+        'opacity-35',
+    ],
     theme: {
         extend: {
             colors: {
@@ -40,6 +75,14 @@ export default {
                 line: withOpacity('--color-line'),
                 sienna: withOpacity('--color-sienna'),
                 blush: withOpacity('--color-blush'),
+                // The one cool accent — Reschedule's button and dialog band only.
+                // Declared here as well as in app.css `:root`, because the
+                // utilities resolve through this map rather than off the custom
+                // property on their own.
+                info: {
+                    DEFAULT: withOpacity('--color-info'),
+                    bg: withOpacity('--color-info-bg'),
+                },
                 ink: {
                     DEFAULT: withOpacity('--color-text-dark'),
                     muted: withOpacity('--color-text-muted'),

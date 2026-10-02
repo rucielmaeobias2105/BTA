@@ -4,21 +4,39 @@ namespace App\Services;
 
 use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
-use App\Models\BlockedDate;
 use App\Models\SalonSetting;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 /**
  * Single source of truth for "can this appointment be booked at that time?".
  *
  * Used by:
- *  - StoreBookingRequest / UpdateRescheduleRequest (server-side validation)
- *  - BookingController + RescheduleController (slot dropdown)
- *  - Admin CalendarController (which days are struck through)
+ *  - StoreBookingRequest / RescheduleRequest (server-side validation)
+ *  - AppointmentController + RescheduleAppointmentController (slot dropdown)
+ *
+ * Four rules, and there used to be a fifth:
+ *
+ *   - at least a day of notice, and no further ahead than the booking horizon;
+ *   - not a day the salon is closed, per its operating hours;
+ *   - inside operating hours; and
+ *   - not a slot another booking already holds.
+ *
+ * The fifth was the blocked-date check, and it is gone with the Calendar &
+ * Blocked Dates feature. A closure is now expressed the only way the salon can
+ * actually close — by editing its operating hours in `salon_settings` — so there
+ * is one mechanism rather than two that could disagree: a day marked closed in
+ * one place and open in the other used to be a booking that no screen would accept
+ * and no one could explain.
+ *
+ * Everything here is still enforced server-side as well as on the date input, and
+ * the customer form reads this class for its slot dropdown, so a day the salon is
+ * closed comes back with no slots rather than with slots that fail on submit.
  */
 class BookingAvailability
 {
+    /** Shown when a date is inside the minimum-notice window. */
+    public const MINIMUM_NOTICE_MESSAGE = 'Appointments must be booked at least one day in advance.';
+
     public function __construct(protected SalonSetting $settings) {}
 
     public static function make(): self
@@ -31,10 +49,16 @@ class BookingAvailability
         return $this->settings;
     }
 
-    /** First bookable date. */
+    /**
+     * First bookable date.
+     *
+     * Tomorrow, in the salon's local time. Same-day bookings are not accepted,
+     * so the customer's date input, the slot endpoint and both form validators
+     * all resolve their floor through here rather than each re-deriving it.
+     */
     public function firstBookableDate(): Carbon
     {
-        return today();
+        return today()->addDay();
     }
 
     /** Last bookable date, bounded by the configured booking lead time. */
@@ -46,15 +70,22 @@ class BookingAvailability
     /**
      * All reasons a date is unavailable.
      *
+     * No longer takes a `$serviceId`: blocking was the only rule that could vary
+     * by service, and with the feature gone neither notice, horizon, opening days
+     * nor hours depends on which service is in the basket. The parameter is gone
+     * rather than left ignored, so no caller keeps passing a value that does
+     * nothing.
+     *
      * @return array<int, string>
      */
-    public function dateProblems(string $date, ?int $serviceId = null): array
+    public function dateProblems(string $date): array
     {
         $problems = [];
         $day = Carbon::parse($date);
 
-        if ($day->lt(today())) {
-            $problems[] = 'The selected date is in the past.';
+        // One rule covers today and the past: both fail the minimum notice.
+        if ($day->lt($this->firstBookableDate())) {
+            $problems[] = self::MINIMUM_NOTICE_MESSAGE;
         }
 
         if ($day->gt($this->lastBookableDate())) {
@@ -65,73 +96,23 @@ class BookingAvailability
             $problems[] = 'We are closed on '.$day->format('l').'s.';
         }
 
-        foreach ($this->blockedRanges($serviceId) as $blocked) {
-            if ($day->betweenIncluded($blocked['start'], $blocked['end'])) {
-                $label = $blocked['label'];
-
-                $problems[] = $blocked['service_id'] === null
-                    ? "The salon is closed on {$label}.".($blocked['reason'] ? " ({$blocked['reason']})" : '')
-                    : "{$blocked['service']} is unavailable on {$label}.".($blocked['reason'] ? " ({$blocked['reason']})" : '');
-
-                break;
-            }
-        }
-
         return $problems;
     }
 
-    public function isDateAvailable(string $date, ?int $serviceId = null): bool
+    public function isDateAvailable(string $date): bool
     {
-        return $this->dateProblems($date, $serviceId) === [];
-    }
-
-    /**
-     * Blocked ranges that apply to a given service.
-     *
-     * @return array<int, array{start: Carbon, end: Carbon, service_id: ?int, service: ?string, label: string, reason: ?string}>
-     */
-    public function blockedRanges(?int $serviceId = null): array
-    {
-        $query = BlockedDate::query()
-            ->with('service:id,name')
-            ->overlapping($this->firstBookableDate()->toDateString(), $this->lastBookableDate()->toDateString());
-
-        if ($serviceId !== null) {
-            // Applies to this service specifically, or to every service.
-            $query->where(fn ($q) => $q->where('service_id', $serviceId)->orWhereNull('service_id'));
-        } else {
-            // Service-agnostic queries only consider global closures.
-            $query->whereNull('service_id');
-        }
-
-        return $query->get()
-            ->map(function (BlockedDate $blocked) {
-                $start = $blocked->start_date->copy()->startOfDay();
-                $end = $blocked->end_date->copy()->startOfDay();
-
-                return [
-                    'start' => $start,
-                    'end' => $end,
-                    'service_id' => $blocked->service_id,
-                    'service' => $blocked->service?->name,
-                    'label' => $start->isSameDay($end)
-                        ? $start->format('M j, Y')
-                        : $start->format('M j').'–'.$end->format('j, Y'),
-                    'reason' => $blocked->reason,
-                ];
-            })
-            ->all();
+        return $this->dateProblems($date) === [];
     }
 
     /**
      * Bookable times on a date, excluding slots already taken and slots that
-     * would overlap a confirmed/in-progress appointment.
+     * would overlap an accepted appointment.
      *
      * @return array<int, string>
      */
-    public function availableSlots(string $date, ?int $serviceId = null, ?int $ignoreAppointmentId = null): array
+    public function availableSlots(string $date, ?int $ignoreAppointmentId = null): array
     {
-        if (! $this->isDateAvailable($date, $serviceId)) {
+        if (! $this->isDateAvailable($date)) {
             return [];
         }
 
@@ -160,11 +141,16 @@ class BookingAvailability
     /**
      * Times already committed on a date.
      *
+     * Pending and accepted both hold their slot, otherwise a customer could
+     * pick a time another customer has already been given and the second
+     * booking would fail at confirmation instead of at selection.
+     *
      * @return array<int, string>
      */
     public function takenTimes(string $date, ?int $ignoreAppointmentId = null): array
     {
         return Appointment::query()
+            ->active()
             ->whereDate('preferred_date', $date)
             ->whereIn('status', [
                 AppointmentStatus::Pending->value,
@@ -182,9 +168,9 @@ class BookingAvailability
     /**
      * @return array<int, string>
      */
-    public function timeProblems(string $date, string $time, ?int $serviceId = null, ?int $ignoreAppointmentId = null): array
+    public function timeProblems(string $date, string $time, ?int $ignoreAppointmentId = null): array
     {
-        $problems = $this->dateProblems($date, $serviceId);
+        $problems = $this->dateProblems($date);
 
         if ($problems !== []) {
             return $problems;
@@ -206,30 +192,4 @@ class BookingAvailability
         return $problems;
     }
 
-    /**
-     * Days between today and the booking horizon, flagged for the date picker.
-     *
-     * @return array<string, array{blocked: bool, label: ?string}>
-     */
-    public function calendarMap(?int $serviceId = null, ?Carbon $from = null, ?Carbon $to = null): Collection
-    {
-        $from ??= $this->firstBookableDate();
-        $to ??= $from->copy()->addDays(29);
-
-        $map = collect();
-        $cursor = $from->copy();
-
-        while ($cursor->lte($to)) {
-            $problems = $this->dateProblems($cursor->toDateString(), $serviceId);
-
-            $map->put($cursor->toDateString(), [
-                'blocked' => $problems !== [],
-                'label' => $problems[0] ?? null,
-            ]);
-
-            $cursor->addDay();
-        }
-
-        return $map;
     }
-}

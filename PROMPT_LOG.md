@@ -114,61 +114,66 @@ After each module, log what was built to prompt.log per Section 2.
 Ask for clarification only if something is truly ambiguous (e.g., payment gateway integration for the "Down Payment Reference Number" field — assume manual admin verification against GCash unless told otherwise, no live payment gateway integration required).
 Do not fabricate scope beyond what's listed — no features outside this spec unless explicitly requested later."
 
-### Task: Running the app locally via XAMPP/Apache at localhost/BTA/public/
-* Prompt used: "run locally eg switch localhost/BTA/public/"
-
-### Task: Fixing "Firefox can't connect" on http://localhost:8000
-* Prompt used: "The site at http://localhost:8000 keeps failing with Firefox saying it is unable to connect. Make it always reachable. Set up a detached always-on server."
-
-### Task: Building the detached dev-server supervisor
-* Prompt used: "Pick the detached always-on server option (not a Windows login autostart) and keep http://localhost:8000 up, restarting it automatically if it dies."
-
-### Task: Finishing the launcher scripts
-* Prompt used: "continue pllease"
-
 ### Task: Tracking prompts in PROMPT_LOG.md
 * Prompt used: "Prompt Log Format - Create a file named PROMPT_LOG.md in the root directory of your project using this format: ### Task: [e.g., Creating the Education Section] * Prompt used: \"Create a responsive Blade component for my educational history using Tailwind CSS."
 
-### Task: the navbar logo use the C:\xampp\htdocs\BTA\public\images\logo.png
-* Prompt used: "the navbar logo use the C:\\xampp\\htdocs\\BTA\\public\\images\\logo.png"
-* Recorded: 2026-09-27 14:20:05 (session backfill)
+### Task: Replace JavaScript Alert with Custom HTML/CSS Confirmation Modal and ...
+* Prompt used: "Replace JavaScript Alert with Custom HTML/CSS Confirmation Modal and Fix Modal Backdrop StylingPlease update the calendar and blocked dates view (e.g., admin/calendar view file and associated JavaScript files) to improve the modal styling and behavior:1. Replace Browser Native confirm() with a Custom ModalCurrent Behavior: Clicking the \"Mark Available\" button triggers a browser-native JavaScript alert (confirm(\"Mark [Date] available again?\")).   Requested Change: Replace the browser native JS confirm dialog with a custom HTML/CSS modal component matching the design of the \"Block Date\" modal.   Modal Details:Title: \"Unblock Date\" or \"Mark Date as Available\"Body Content: A confirmation message, e.g., \"Are you sure you want to mark [Date] as available again?\"Action Buttons:A text/link style Cancel button (closes the modal without taking action).A primary dark red pill button labeled \"Confirm\" or \"Mark Available\" (submits the action/form).Include a top-right close icon (×) consistent with the \"Block Date\" modal.   2. Update Modal Backdrop / Blurred Background OverlayCurrent Behavior: When any modal opens (including the Block Date modal), the backdrop overlay uses a heavy reddish/tinted blur effect.   Requested Change:Replace the red tint on the backdrop overlay with a soft, warm cream/beige translucent backdrop or a neutral dark/light backdrop blur (e.g., background-color: rgba(245, 240, 235, 0.6) with backdrop-filter: blur(4px)).Ensure this backdrop styling applies consistently to all modals across the page (both Block Date and Unblock/Mark Available modals).3. Implementation RequirementsMaintain the existing form submission or AJAX request logic that triggers when marking a date as available.Ensure proper open/close state management for the new custom modal via JavaScript/AlpineJS/Bootstrap/Tailwind (whichever framework is in use)."
+* Recorded: 2026-09-29 00:49:48 (session ses_f1aac67b3ffeYtftYNXQjRnAdb)
 
-### Task: same in the footer logo 
-* Prompt used: "same in the footer logo "
-* Recorded: 2026-09-27 14:22:41 (session backfill)
 
-### Task: then make sure that all my prompts even i clocse or back will record all
-* Prompt used: "then make sure that all my prompts even i clocse or back will record all my prompts"
-* Recorded: 2026-09-27 14:24:20 (session backfill)
+### Task: i didnt recieved any code please fixed
+* Prompt used: "i didnt recieved any  code please fixed"
+* Recorded: 2026-10-02 11:52:40 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: tab name mus tbe
-* Prompt used: "tab name mus tbe \n\nHOME | Balai ti Arjud\nLOG IN | Balai ti Arjud \n\ndo it to all sections/features"
-* Recorded: 2026-09-27 14:29:30 (session backfill)
+### Task: remove also the category column on the inventory table
+* Prompt used: "remove also the category column on the inventory table"
+* Recorded: 2026-10-02 12:05:04 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: home sections only remove the following
-* Prompt used: "home sections only  remove the following \n- About Section \n- Inside the Lounge\nBeautiful moments, captured\n\nStep in, relax, and let our team handle the rest.  (this section) \n- Book Online card)\n\nin the tabs\n- HOME | Balai ti Arjud (showing) instead PROMO | Balai ti Arjud \n- BROWSE SERVICES to SERVICES | Balai ti Arjud"
-* Recorded: 2026-09-27 14:35:10 (session backfill)
+### Task: this is the "[REDACTED-app-password]" app password code of my google app ...
+* Prompt used: "this is the \"[REDACTED-app-password]\" app password code of my google app password"
+* Recorded: 2026-10-02 12:10:40 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: no once i click the promo it directs me to the promo section and the ...
-* Prompt used: "no once i click the promo it directs me to the promo section and the tab name must be \nPROMO | Balai ti Arjud"
-* Recorded: 2026-09-27 14:38:30 (session backfill)
+### Task: next step??
+* Prompt used: "next step??"
+* Recorded: 2026-10-02 12:12:20 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: no it change to the promo section not to remain
-* Prompt used: "no it change to the promo section not to remain"
-* Recorded: 2026-09-27 14:41:30 (session backfill)
+### Task: fixed it please
+* Prompt used: "fixed it please"
+* Recorded: 2026-10-02 12:15:01 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: no its not
-* Prompt used: "no its not \n\nthe default public is HOME then is i click the services it goes to services then it must be same on the promo it directcs me to the promo "
-* Recorded: 2026-09-27 14:52:00 (session backfill)
+### Task: it belongs to rucielmaeobias277@gmail.com google account
+* Prompt used: "it belongs to rucielmaeobias277@gmail.com google account"
+* Recorded: 2026-10-02 12:16:38 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: continue
-* Prompt used: "continue"
-* Recorded: 2026-09-27 14:54:00 (session backfill)
+### Task: its now working but is no 6 digit code
+* Prompt used: "its now working but is no  6 digit code"
+* Recorded: 2026-10-02 12:26:03 (session ses_f055f427fffeQyQLI7cnAkWC11)
 
-### Task: is all my prompts saved??
-* Prompt used: "is all my prompts saved??"
-* Recorded: 2026-09-27 14:57:00 (session backfill)
+### Task: cancellation policy, re schedule policy link for modal if not working...
+* Prompt used: "cancellation policy, re schedule policy link for modal if not working please fixed it"
+* Recorded: 2026-10-02 12:32:14 (session ses_f051da27affebXzhsql2H1L8rS)
 
-### Task: export my database and save to my root directory after that push it
-* Prompt used: "export my database and save to my root directory  after that push it"
-* Recorded: 2026-09-27 15:03:37 (session ses_f1e52d6dbffe5Jhc2QwYSjQ4f1)
+### Task: cancellation policy, re schedule policy link for modal if not working...
+* Prompt used: "cancellation policy, re schedule policy link for modal if not working please fixed it \nterms and conditions  saving method will not use taggings please remove the versions versions"
+* Recorded: 2026-10-02 12:33:01 (session ses_f051da27affebXzhsql2H1L8rS)
+
+### Task: In the Laravel project at C:\xampp\htdocs\BTA, find all code related ...
+* Prompt used: "In the Laravel project at C:\\xampp\\htdocs\\BTA, find all code related to \"cancellation policy\" and \"reschedule policy\" links/modals. I need:\n\n1. Any Blade views containing links/buttons that open a modal for cancellation policy or reschedule policy (search for terms like \"cancellation\", \"reschedule\", \"policy\", \"modal\").\n2. The JS/Alpine/Vue code that controls those modals (open/close handlers, data attributes, x-data, wire:click, etc.).\n3. Any modal component in resources/views/components/ that they reuse.\n4. Any route or controller serving the policy content.\n\nReport exact file paths with line numbers, and paste the relevant code snippets (the button/link markup AND the modal markup AND the JS that toggles it). Be very thorough - check both customer and admin views, layouts, and any shared components. Also check for CSS classes that might hide the modal (e.g. hidden, opacity-0, invisible, pointer-events-none)."
+* Recorded: 2026-10-02 12:33:11 (session ses_f051cc106ffeOrmSXDwl3DKPb0)
+
+### Task: In the Laravel project at C:\xampp\htdocs\BTA, investigate the "Terms...
+* Prompt used: "In the Laravel project at C:\\xampp\\htdocs\\BTA, investigate the \"Terms and Conditions\" feature. I need:\n\n1. The TermsController (app/Http/Controllers/Admin/TermsController.php) - full contents.\n2. Any Form Request classes for terms (app/Http/Requests/...Terms...).\n3. The TermsCategory enum (app/Enums/TermsCategory.php) - full contents.\n4. The Terms model (app/Models/Term*.php or similar) - full contents.\n5. The migrations for the terms tables - list them and show the schema (columns).\n6. The Blade views for terms: the create/edit form view, the index/list view, and the customer-facing display view.\n7. Any mention of \"version\" or \"versions\" anywhere in the terms code - migrations, models, controllers, views. This is important - the user says the saving method \"will not use taggings please remove the versions\". Show every occurrence of \"version\" in the terms-related files with line numbers.\n\nReport exact file paths with line numbers and paste relevant code. Be very thorough."
+* Recorded: 2026-10-02 12:33:14 (session ses_f051cb826ffetQ2Fuk6dbs1iAW)
+
+### Task: The DELETE method is not supported for route admin/appointments/31/ar...
+* Prompt used: "The DELETE method is not supported for route admin/appointments/31/archive. Supported methods: POST."
+* Recorded: 2026-10-02 12:59:15 (session ses_f051da27affebXzhsql2H1L8rS)
+
+### Task: export updated database
+* Prompt used: "export updated database"
+* Recorded: 2026-10-02 13:42:13 (session ses_f051da27affebXzhsql2H1L8rS)
+
+### Task: push all
+* Prompt used: "push all"
+* Recorded: 2026-10-02 13:49:09 (session ses_f051da27affebXzhsql2H1L8rS)

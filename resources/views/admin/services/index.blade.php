@@ -4,125 +4,114 @@
 @section('heading', 'Service Management')
 
 @section('content')
-    <x-ui.page-header
-        eyebrow="Catalogue"
-        title="Services"
-        description="Add, edit and remove services, including short/long hair style variants."
+    @php
+        // The Actions column is capability-gated, so the empty rows have to
+        // span whatever the admin who is looking actually gets.
+        $columns = auth('admin')->user()?->can('admin.catalog.manage') ? 5 : 4;
+    @endphp
+
+    <x-ui.admin-table
+        add-label="Add Service"
+        :add-href="route('admin.services.create')"
+        :search="$search"
     >
-        <x-slot:actions>
-            @can('admin.catalog.manage')
-                <a href="{{ route('admin.services.create') }}" class="btn-primary btn-sm">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                    Add Service
-                </a>
-            @endcan
-        </x-slot:actions>
-    </x-ui.page-header>
-
-    <form method="GET" action="{{ route('admin.services.index') }}" class="bta-card mb-6 p-5">
-        <div class="grid gap-4 md:grid-cols-12">
-            <div class="md:col-span-6">
-                <x-ui.form.input name="search" label="Search" placeholder="Name, description or category" :value="$filters['search'] ?? null" />
-            </div>
-            <div class="md:col-span-4">
-                <x-ui.form.select
-                    name="category"
-                    label="Category"
-                    :includeBlank="true"
-                    blankLabel="All Categories"
-                    :value="$filters['category'] ?? null"
-                    :options="$categories->mapWithKeys(fn ($c) => [$c => $c])->all()"
-                />
-            </div>
-            <div class="flex items-end gap-2 md:col-span-2">
-                <button type="submit" class="btn-primary flex-1">Filter</button>
-                @if (array_filter($filters))
-                    <a href="{{ route('admin.services.index') }}" class="btn-ghost">Clear</a>
-                @endif
-            </div>
-        </div>
-    </form>
-
-    @if ($services->isEmpty())
-        <x-ui.empty title="No services found" description="Add your first service to get started.">
-            <x-slot:action>
-                @can('admin.catalog.manage')
-                    <a href="{{ route('admin.services.create') }}" class="btn-primary">Add Service</a>
-                @endcan
-            </x-slot:action>
-        </x-ui.empty>
-    @else
-        <div class="bta-card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="bta-table">
-                    <thead>
-                        <tr>
-                            <th>Service</th>
-                            <th>Category</th>
-                            <th>Variants</th>
-                            <th class="text-right">Price</th>
-                            <th class="text-right">Duration</th>
-                            <th class="text-center">Items</th>
-                            <th class="text-center">Status</th>
+        <table class="bta-table">
+            <thead>
+                <tr>
+                    <x-ui.sortable-th column="name" label="Name" :sort="$sort" :direction="$direction" :action="route('admin.services.index')" :params="['search' => $search]" />
+                    <x-ui.sortable-th column="category" label="Category" :sort="$sort" :direction="$direction" :action="route('admin.services.index')" :params="['search' => $search]" />
+                    <x-ui.sortable-th column="base_price" label="Price" :sort="$sort" :direction="$direction" :action="route('admin.services.index')" :params="['search' => $search]" align="right" />
+                    <x-ui.sortable-th column="is_active" label="Available" :sort="$sort" :direction="$direction" :action="route('admin.services.index')" :params="['search' => $search]" align="center" />
+                    @can('admin.catalog.manage')
+                        <th class="text-right">Actions</th>
+                    @endcan
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($services as $service)
+                    <tr data-row x-show="isShown({{ $loop->index }})">
+                        <td class="font-medium text-primary">{{ $service->name }}</td>
+                        <td>
+                            <span class="badge badge-gold">{{ $service->category }}</span>
+                        </td>
+                        <td class="whitespace-nowrap text-right font-medium text-primary">
+                            {{ \App\Support\PriceFormatter::display($service->price) }}
+                        </td>
+                        <td class="text-center">
                             @can('admin.catalog.manage')
-                                <th class="text-right">Actions</th>
+                                <x-ui.table-toggle
+                                    :action="route('admin.services.toggle', $service)"
+                                    :checked="$service->is_active"
+                                    on-label="Available"
+                                    off-label="Hidden"
+                                    :label="$service->is_active ? 'Mark “'.$service->name.'” as hidden' : 'Mark “'.$service->name.'” as available'"
+                                />
+                            @else
+                                <x-ui.badge :status="$service->is_active ? 'confirmed' : 'cancelled'" :label="$service->is_active ? 'Available' : 'Hidden'" />
                             @endcan
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($services as $service)
-                            <tr>
-                                <td>
-                                    <div class="flex items-center gap-3">
-                                        @if ($service->photo_url)
-                                            <img src="{{ $service->photo_url }}" alt="" class="h-10 w-10 shrink-0 rounded-lg object-cover">
-                                        @else
-                                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-linen text-gold-dark">
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9.75 6.75 4.5 12l5.25 5.25M14.25 6.75 19.5 12l-5.25 5.25"/></svg>
-                                            </span>
-                                        @endif
-                                        <div class="min-w-0">
-                                            <p class="truncate font-medium text-primary">{{ $service->name }}</p>
-                                            <p class="truncate text-xs text-ink-muted">{{ \Illuminate\Support\Str::limit($service->description, 46) }}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="whitespace-nowrap"><span class="badge badge-gold">{{ $service->category }}</span></td>
-                                <td class="text-center">
-                                    <span class="text-sm font-medium text-primary">{{ $service->variants->count() }}</span>
-                                </td>
-                                <td class="whitespace-nowrap text-right font-medium text-primary">₱{{ number_format((float) $service->price, 2) }}</td>
-                                <td class="whitespace-nowrap text-right text-ink">{{ $service->duration_label }}</td>
-                                <td class="text-center text-ink">{{ $service->inventory_items_count }}</td>
-                                <td class="text-center">
-                                    <div class="flex flex-col items-center gap-1">
-                                        <x-ui.badge :status="$service->is_active ? 'confirmed' : 'cancelled'" :label="$service->is_active ? 'Active' : 'Hidden'" />
-                                        @if ($service->is_featured)
-                                            <x-ui.badge status="best_seller" label="Featured" />
-                                        @endif
-                                    </div>
-                                </td>
-                                @can('admin.catalog.manage')
-                                    <td>
-                                        <div class="flex justify-end gap-1.5">
-                                            <a href="{{ route('admin.services.variants', $service) }}" class="btn-ghost btn-sm" title="Variants">Variants</a>
-                                            <a href="{{ route('admin.services.edit', $service) }}" class="btn-secondary btn-sm">Edit</a>
-                                            <form method="POST" action="{{ route('admin.services.destroy', $service) }}"
-                                                  onsubmit="return confirm('Delete “{{ $service->name }}”? Historical bookings keep their saved details.')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn-danger btn-sm">Delete</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                @endcan
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                        </td>
+                        @can('admin.catalog.manage')
+                            <td>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <x-ui.icon-action
+                                        label="Edit {{ $service->name }}"
+                                        icon="heroicon-o-pencil-square"
+                                        tone="primary"
+                                        :href="route('admin.services.edit', $service)"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="icon-action icon-action-danger"
+                                        title="Delete {{ $service->name }}"
+                                        aria-label="Delete {{ $service->name }}"
+                                        x-on:click.prevent="$dispatch('confirm-delete-service', { id: {{ $service->id }}, name: @js($service->name) })"
+                                    >
+                                        <x-heroicon-o-trash class="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </td>
+                        @endcan
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="{{ $columns }}" class="py-12 text-center text-sm text-ink-muted">
+                            No services yet. Use “Add Service” to create the first one.
+                        </td>
+                    </tr>
+                @endforelse
 
-        <div class="mt-6">{{ $services->links() }}</div>
-    @endif
+                {{-- Shown when the search box has filtered every row away. --}}
+                @if ($services->isNotEmpty())
+                    <tr x-show="total === 0" x-cloak>
+                        <td colspan="{{ $columns }}" class="py-12 text-center text-sm text-ink-muted">No data available</td>
+                    </tr>
+                @endif
+            </tbody>
+        </table>
+    </x-ui.admin-table>
 @endsection
+
+@push('modals')
+    {{-- The shared `x-ui.confirm-dialog`, replacing the native `confirm()` the
+         trash action used to raise.
+
+         One dialog for the whole table rather than a form per row: the trash
+         button dispatches the row's id and `confirmDialog.ask()` resolves `{id}`
+         in the action template when the event fires. That keeps this to a single
+         CSRF token and a single `_method` spoof instead of one pair per service.
+
+         The `{id}` is appended *after* `route()` returns, which is what makes it
+         safe: passed inside `route()` the URL generator would scan the finished
+         path for `{parameter}` tokens and throw on a placeholder meant for
+         JavaScript. --}}
+    <x-ui.confirm-dialog
+        title="Delete service"
+        event="confirm-delete-service"
+        :action="route('admin.services.index').'/{id}'"
+        subject="service"
+        warning="This removes the service from the catalogue. Bookings that already used it keep their saved details."
+        title-id="confirm-delete-service-title"
+        confirm-label="Yes"
+        cancel-label="No"
+    />
+@endpush

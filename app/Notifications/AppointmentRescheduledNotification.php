@@ -11,7 +11,7 @@ class AppointmentRescheduledNotification extends BaseAppointmentNotification
             'message' => 'Your appointment has been moved to '.$this->appointment->date_time_label.'.',
             'icon' => 'calendar',
             'tone' => 'confirmed',
-            'url' => route('appointments.show', $this->appointment),
+            'url' => $this->detailsUrl(),
         ];
     }
 }

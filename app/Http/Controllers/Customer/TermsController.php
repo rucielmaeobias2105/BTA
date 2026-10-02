@@ -8,8 +8,8 @@ use App\Models\TermsAndCondition;
 use Illuminate\View\View;
 
 /**
- * Renders the admin-authored, versioned T&C content that the booking,
- * cancellation and reschedule checkboxes link to.
+ * Renders the admin-authored T&C content that the booking, cancellation and
+ * reschedule checkboxes link to.
  */
 class TermsController extends Controller
 {

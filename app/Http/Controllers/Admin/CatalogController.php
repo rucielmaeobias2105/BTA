@@ -9,8 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Admin Flow 4 — Service & Item Management overview.
- * One combined, searchable list of services and inventory items.
+ * Admin Flow 4 — Service overview.
+ *
+ * The combined "Services & Items" catalogue used to list inventory items
+ * alongside services and offered an "Add Item" button here. Items are managed
+ * under Inventory, so this is now a services-only list and no longer queries
+ * the stockroom at all.
  */
 class CatalogController extends Controller
 {
@@ -30,19 +34,8 @@ class CatalogController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $items = InventoryItem::query()
-            ->with('services:id,name')
-            ->withCount('services')
-            ->search($term)
-            ->category($category)
-            ->when($type === 'service', fn ($q) => $q->whereRaw('1 = 0'))
-            ->orderBy('name')
-            ->paginate(20)
-            ->withQueryString();
-
         return view('admin.catalog.index', [
             'services' => $services,
-            'items' => $items,
             'filters' => ['search' => $term, 'category' => $category, 'type' => $type],
             'serviceCategories' => Service::query()->distinct()->orderBy('category')->pluck('category'),
             'itemCategories' => InventoryItem::query()->distinct()->orderBy('category')->pluck('category'),

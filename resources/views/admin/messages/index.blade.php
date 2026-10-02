@@ -10,15 +10,46 @@
         description="Enquiries submitted through the customer Contact Us form."
     />
 
-    <div class="mb-5 flex flex-wrap items-center gap-2">
+    {{--
+        `unread` is seeded from the server's own count and then follows the
+        `admin-messages` broadcast, so the pill and the button below it move the
+        instant an enquiry is marked read rather than at the next page load. A
+        mirror of the sidebar's badge, from the same event — not a second poll.
+    --}}
+    <div
+        class="mb-5 flex flex-wrap items-center gap-2"
+        x-data="{ unread: {{ (int) $unreadCount }} }"
+        x-on:admin-messages.window="unread = $event.detail"
+    >
         <a href="{{ route('admin.messages.index') }}"
            class="rounded-pill px-3.5 py-1.5 text-sm font-medium transition {{ empty($filters['filter']) ? 'bg-primary text-cream' : 'bg-cream text-ink hover:bg-linen' }}">
             All
         </a>
         <a href="{{ route('admin.messages.index', ['filter' => 'unread']) }}"
            class="rounded-pill px-3.5 py-1.5 text-sm font-medium transition {{ ($filters['filter'] ?? '') === 'unread' ? 'bg-primary text-cream' : 'bg-cream text-ink hover:bg-linen' }}">
-            Unread ({{ $unreadCount }})
+            Unread (<span x-text="unread">{{ $unreadCount }}</span>)
         </a>
+
+        {{--
+            Reading an enquiry clears the sidebar's Messages badge, and this
+            screen is the only place that can happen now that the topbar bell
+            and its dropdown are gone.
+
+            A dispatch rather than a component of its own, because
+            `adminLiveNotifications` in the layout already owns the count and the
+            request — a second implementation here would be a second place for the
+            badge and the tab title to come apart. With scripting off the button
+            does nothing, which is the same degradation every other scripted
+            affordance in this project has; the per-row "Save & Mark Read" form
+            always works.
+        --}}
+        <button
+            type="button"
+            x-show="unread > 0"
+            x-cloak
+            x-on:click="$dispatch('admin-read-all')"
+            class="btn-secondary ml-auto"
+        >Mark all as read</button>
     </div>
 
     <form method="GET" action="{{ route('admin.messages.index') }}" class="bta-card mb-6 p-5">
@@ -60,12 +91,25 @@
                             <p class="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink">{{ $message->message }}</p>
                         </div>
 
-                        <form method="POST" action="{{ route('admin.messages.destroy', $message) }}" class="shrink-0"
-                              onsubmit="return confirm('Delete this message?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                        </form>
+                        <div class="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+                            {{-- Only on an unread row, and the same dispatch as the
+                                 button above: the layout's poller owns the write
+                                 and the count. --}}
+                            @unless ($message->is_read)
+                                <button
+                                    type="button"
+                                    x-on:click="$dispatch('admin-read-message', @js($message->id))"
+                                    class="btn-secondary btn-sm"
+                                >Mark read</button>
+                            @endunless
+
+                            <form method="POST" action="{{ route('admin.messages.destroy', $message) }}"
+                                  onsubmit="return confirm('Delete this message?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
                     </div>
 
                     <form method="POST" action="{{ route('admin.messages.update', $message) }}" class="mt-4 border-t border-primary/10 pt-4">

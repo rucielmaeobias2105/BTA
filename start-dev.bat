@@ -9,6 +9,11 @@ REM
 REM  Usage:  start-dev.bat
 REM  Then open http://localhost:8000
 REM
+REM  The browser is opened for you, but only once the site really
+REM  answers, so you never see a "can't connect" page.
+REM
+REM  Press Ctrl+C in this window to stop.
+REM
 REM  Prefer a server that survives closing this window? Use
 REM  dev-up.bat instead - it runs detached and restarts the app
 REM  automatically if it dies.
@@ -89,6 +94,13 @@ if errorlevel 1 (
     echo       WARNING: asset build failed. The app will look unstyled.
 )
 
+REM A background waiter opens the browser only after the site really answers.
+REM Booting Laravel on this machine can take the best part of a minute, so
+REM opening the browser immediately would show "can't connect to
+REM 127.0.0.1:8000" on every run.
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','%~dp0tools\wait-for-site.ps1','-Port','8000','-TimeoutSeconds','240','-OpenBrowser' -WindowStyle Hidden" >nul 2>&1
+
 echo.
 echo  ==========================================================
 echo  Ready.
@@ -99,11 +111,16 @@ echo.
 echo  Admin login     username: admin   password: password
 echo  Customer login  email: juan@example.test   password: password
 echo.
-echo  Press Ctrl+C to stop.
+echo  Your browser will open by itself as soon as the site answers, so you
+echo  will never land on a "can't connect" page. Do not close this window.
 echo.
 echo  Note: XAMPP's Apache serves the same app in parallel at
 echo        http://localhost/BTA/public/ - both work at once.
 echo  ==========================================================
 echo.
 
-php artisan serve
+REM --host and --port are passed explicitly on purpose. Without them,
+REM "artisan serve" silently falls back to 8001, 8002, ... when 8000 is busy,
+REM which leaves http://localhost:8000 dead while the app actually runs
+REM somewhere else - the exact symptom this script is meant to avoid.
+php artisan serve --host=127.0.0.1 --port=8000

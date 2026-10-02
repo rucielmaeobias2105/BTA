@@ -51,27 +51,28 @@ class User extends Authenticatable
         return Str::upper(Str::substr((string) $this->first_name, 0, 1).Str::substr((string) $this->last_name, 0, 1));
     }
 
+    /**
+     * Where the avatar actually is, for whoever is looking right now.
+     *
+     * Deliberately `url()` and not `asset()` / `Storage::url()`. Those build
+     * from `APP_URL`, so a photo saved from a page served at one host or port
+     * renders as a request to a different origin, and the browser shows a
+     * broken image for a file that is on disk exactly where it should be. That
+     * is not a rare edge: serving the project out of `public/` under a
+     * subdirectory, or on the dev server rather than the configured one, is
+     * enough to break every avatar on the site.
+     *
+     * `url()` resolves against the current request's root, so it follows
+     * whatever the browser actually asked for.
+     */
     public function getProfilePhotoUrlAttribute(): ?string
     {
-        return $this->profile_photo_path ? asset('storage/'.$this->profile_photo_path) : null;
+        return $this->profile_photo_path ? url('storage/'.$this->profile_photo_path) : null;
     }
 
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class)->latest();
-    }
-
-    public function reviews(): HasMany
-    {
-        return $this->hasMany(Review::class)->latest();
-    }
-
-    /** Completed appointments that have not yet been rated. */
-    public function reviewableAppointments()
-    {
-        return $this->appointments()
-            ->where('status', \App\Enums\AppointmentStatus::Completed->value)
-            ->whereDoesntHave('review');
     }
 
     public function scopeActive($query)

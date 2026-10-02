@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Route;
 /**
  * Resolves which nav item should render as "active" from the current route.
  * Keeps the active-state logic out of the Blade partials.
+ *
+ * The customer map has no `dashboard` entry: the customer Dashboard was removed,
+ * and `home` is what a signed-in customer lands on now.
  */
 class Nav
 {
@@ -19,11 +22,11 @@ class Nav
         'services.index' => 'services',
         'services.refined' => 'refined',
         'appointments.*' => 'appointments',
-        'dashboard' => 'dashboard',
         'notifications.*' => 'notifications',
         'profile.*' => 'profile',
         'contact.*' => 'contact',
         'about' => 'about',
+        'promos.index' => 'promos',
         'home' => 'home',
     ];
 
@@ -34,15 +37,20 @@ class Nav
      */
     protected const ADMIN = [
         'admin.dashboard' => 'dashboard',
+        // Before the `admin.appointments.*` wildcard, or the archive would light
+        // up "Appointments" instead of its own row. Exact matches are checked
+        // first by `match()`, but the wildcard is evaluated in declaration
+        // order, so the specific key has to come first here too.
+        'admin.appointments.archived' => 'archived-appointments',
         'admin.appointments.*' => 'appointments',
         'admin.catalog.*' => 'catalog',
         'admin.services.*' => 'services',
+        'admin.categories.*' => 'categories',
+        'admin.technicians.*' => 'technicians',
         'admin.inventory.*' => 'inventory',
         'admin.tags.*' => 'tags',
-        'admin.calendar.*' => 'calendar',
         'admin.users.*' => 'users',
         'admin.terms.*' => 'terms',
-        'admin.reviews.*' => 'reviews',
         'admin.reports.*' => 'reports',
         'admin.promos.*' => 'promos',
         'admin.messages.*' => 'messages',

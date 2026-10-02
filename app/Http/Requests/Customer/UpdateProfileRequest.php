@@ -31,7 +31,9 @@ class UpdateProfileRequest extends FormRequest
             // Optional password change — only validated when supplied.
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
 
-            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            // 10 MB, in kilobytes. `max` is a KB ceiling even when it reads like
+            // a megabyte count, so this is 10 MB and not 10240 MB.
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'remove_photo' => ['nullable', 'boolean'],
         ];
     }
@@ -44,7 +46,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             'contact_number.regex' => 'Please enter a valid contact number.',
             'profile_photo.image' => 'Your profile picture must be an image.',
-            'profile_photo.max' => 'Your profile picture may not be larger than 2 MB.',
+            'profile_photo.max' => 'Your profile picture may not be larger than 10 MB.',
         ];
     }
 

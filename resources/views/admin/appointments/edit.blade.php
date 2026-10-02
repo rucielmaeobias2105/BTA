@@ -15,7 +15,6 @@
         :description="'Currently '.$appointment->date_time_label.' — '.$appointment->service_names"
     />
 
-    <x-ui.errors />
 
     <form method="POST" action="{{ route('admin.appointments.update', $appointment) }}" class="max-w-3xl space-y-6" novalidate>
         @csrf
@@ -36,6 +35,17 @@
                     label="Preferred Time"
                     required
                     :value="old('preferred_time', \Illuminate\Support\Carbon::parse($appointment->preferred_time)->format('H:i'))"
+                />
+            </div>
+
+            <div class="mt-5">
+                <x-ui.form.select
+                    name="technician_id"
+                    label="Technician"
+                    :value="old('technician_id', $appointment->technician_id)"
+                    :options="$technicians->pluck('name', 'id')->all()"
+                    :includeBlank="true"
+                    blankLabel="No preference"
                 />
             </div>
 

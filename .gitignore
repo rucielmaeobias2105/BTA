@@ -3,6 +3,11 @@
 /public/build
 /public/hot
 /public/storage
+# Generated CSV exports. The report feature streams these to the browser rather
+# than writing them to disk, so anything here is a leftover from an older
+# implementation — and because the directory sits under /public it is web
+# reachable, so a stale export is a copy of the data served to anyone.
+/public/reports
 /storage/*.key
 /storage/pail
 /vendor

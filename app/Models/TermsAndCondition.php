@@ -16,7 +16,6 @@ class TermsAndCondition extends Model
 
     protected $fillable = [
         'category',
-        'version',
         'content',
         'is_published',
         'published_at',
@@ -42,7 +41,7 @@ class TermsAndCondition extends Model
         return $query->where('is_published', true);
     }
 
-    /** The version currently shown to customers for a category. */
+    /** The live row for a category, which is the only row it has. */
     public static function publishedFor(TermsCategory|string $category): ?self
     {
         $value = $category instanceof TermsCategory ? $category->value : $category;
@@ -50,19 +49,13 @@ class TermsAndCondition extends Model
         return static::query()
             ->where('category', $value)
             ->where('is_published', true)
-            ->orderByDesc('version')
             ->first();
     }
 
-    public static function nextVersionFor(TermsCategory|string $category): int
+    public static function forCategory(TermsCategory|string $category): ?self
     {
         $value = $category instanceof TermsCategory ? $category->value : $category;
 
-        return (int) static::where('category', $value)->max('version') + 1;
-    }
-
-    public function getDisplayTitleAttribute(): string
-    {
-        return "{$this->category->label()} Terms (v{$this->version})";
+        return static::query()->where('category', $value)->first();
     }
 }

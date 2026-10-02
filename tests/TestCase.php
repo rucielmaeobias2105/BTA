@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Enums\AdminRole;
 use App\Enums\AppointmentStatus;
 use App\Enums\DownPaymentStatus;
 use App\Enums\ItemTag;
@@ -11,14 +12,14 @@ use App\Models\AppointmentService;
 use App\Models\InventoryItem;
 use App\Models\SalonSetting;
 use App\Models\Service;
-use App\Models\ServiceVariant;
 use App\Models\User;
+use App\Support\PriceFormatter;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
     /* ------------------------------------------------------------------ */
-    /* Factories                                                          */
+    /* Factories */
     /* ------------------------------------------------------------------ */
 
     protected function makeUser(array $attributes = []): User
@@ -41,21 +42,29 @@ abstract class TestCase extends BaseTestCase
         static::$sequence++;
 
         return Admin::create(array_merge([
-            'first_name' => 'Staff',
+            'first_name' => 'Admin',
             'last_name' => 'Member',
-            'username' => 'staff'.static::$sequence,
-            'email' => 'staff'.static::$sequence.'@example.test',
+            'username' => 'admin'.static::$sequence,
+            'email' => 'admin'.static::$sequence.'@example.test',
             'password' => 'password',
-            'role' => 'manager',
+            'role' => AdminRole::Admin,
             'is_active' => true,
         ], $attributes));
     }
 
+    /**
+     * A service that can actually be booked.
+     *
+     * `base_price` mirrors `price` unless a test says otherwise, so a test that
+     * says `['price' => 600]` still books at 600. A test that wants the
+     * advertised price and the charge to differ passes both; a test that wants
+     * an unbookable service passes `'base_price' => null`.
+     */
     protected function makeService(array $attributes = []): Service
     {
         static::$sequence++;
 
-        return Service::create(array_merge([
+        $defaults = [
             'name' => 'Test Service '.static::$sequence,
             'slug' => 'test-service-'.static::$sequence,
             'category' => 'Nail Care',
@@ -63,7 +72,18 @@ abstract class TestCase extends BaseTestCase
             'duration_minutes' => 60,
             'description' => 'A service used in tests.',
             'is_active' => true,
-        ], $attributes));
+        ];
+
+        $merged = array_merge($defaults, $attributes);
+
+        // Taken from the merged price, not the default one: a test that says
+        // ['price' => 900] has to book at 900, and a list sorted by price has to
+        // have three different amounts to sort.
+        if (! array_key_exists('base_price', $attributes)) {
+            $merged['base_price'] = PriceFormatter::firstFigure($merged['price']);
+        }
+
+        return Service::create($merged);
     }
 
     protected function makeItem(array $attributes = []): InventoryItem
@@ -128,6 +148,13 @@ abstract class TestCase extends BaseTestCase
             $hours[$day] = ['09:00', '18:00'];
         }
 
+        // `down_payment_required` is false here to match
+        // `SalonSetting::current()`'s default. It was forced true while the
+        // booking form still asked for a GCash reference; leaving it set would
+        // have run every booking test against a configuration the app no longer
+        // ships, and `BookingService` would compute a deposit amount for bookings
+        // that never took one. A test that needs the old behaviour turns it on
+        // itself, explicitly.
         $settings = SalonSetting::first();
 
         if ($settings) {
@@ -135,7 +162,7 @@ abstract class TestCase extends BaseTestCase
                 'operating_hours' => $hours,
                 'slot_interval_minutes' => 60,
                 'booking_lead_days' => 30,
-                'down_payment_required' => true,
+                'down_payment_required' => false,
                 'down_payment_percentage' => 50,
             ]);
 
@@ -146,7 +173,7 @@ abstract class TestCase extends BaseTestCase
             'operating_hours' => $hours,
             'slot_interval_minutes' => 60,
             'booking_lead_days' => 30,
-            'down_payment_required' => true,
+            'down_payment_required' => false,
             'down_payment_percentage' => 50,
         ]);
     }
